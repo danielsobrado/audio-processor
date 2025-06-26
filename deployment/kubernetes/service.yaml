@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: audio-processor
+  namespace: audio-processor
+spec:
+  selector:
+    app: audio-processor
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: ClusterIP

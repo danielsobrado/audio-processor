@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+sqlalchemy
+alembic
+pydantic
+python-dotenv
+celery
+deepgram-sdk
+redis
+psycopg2-binary
+python-multipart
+httpx

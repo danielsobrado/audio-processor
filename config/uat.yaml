@@ -1,0 +1,61 @@
+environment: uat
+debug: true
+host: 0.0.0.0
+port: 8000
+log_level: INFO
+secret_key: some_uat_secret_key
+allowed_hosts:
+  - uat.example.com
+cors_origins:
+  - https://uat.example.com
+enable_audio_upload: true
+enable_url_processing: true
+enable_translation: true
+enable_summarization: true
+rate_limit_requests: 50
+rate_limit_window: 1800
+max_file_size: 104857600
+supported_formats:
+  - wav
+  - mp3
+  - m4a
+  - flac
+  - ogg
+  - opus
+temp_dir: /tmp/audio_processor
+
+database:
+  url: postgresql://uat_user:uat_password@uat_db_host:5432/uat_db_name
+  pool_size: 30
+  max_overflow: 60
+
+redis:
+  url: redis://uat_redis_host:6379/0
+  max_connections: 100
+
+auth:
+  keycloak_url: https://uat-auth.example.com/auth
+  realm: uat_realm
+  client_id: uat_client
+  client_secret: uat_secret
+
+whisperx:
+  model_size: large-v2
+  device: cuda
+  compute_type: float16
+  language: auto
+  batch_size: 8
+
+diarization:
+  model_name: pyannote/speaker-diarization
+  device: cuda
+  use_auth_token: your_huggingface_token
+
+celery:
+  broker_url: redis://uat_redis_host:6379/1
+  result_backend: redis://uat_redis_host:6379/2
+  worker_concurrency: 6
+
+summarization:
+  api_url: https://uat-summarization.example.com/summarize
+  api_key: your_uat_summarization_api_key

@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audio-processor
+  namespace: audio-processor
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: audio-processor
+  template:
+    metadata:
+      labels:
+        app: audio-processor
+    spec:
+      containers:
+        - name: audio-processor
+          image: your-repo/audio-processor:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: audio-processor-config
+            - secretRef:
+                name: audio-processor-secrets
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "1"
+            limits:
+              memory: "4Gi"
+              cpu: "2"
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
