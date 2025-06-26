@@ -1,0 +1,62 @@
+environment: production
+debug: false
+host: 0.0.0.0
+port: 8000
+log_level: INFO
+secret_key: CHANGE_ME_TO_A_VERY_SECRET_KEY
+allowed_hosts:
+  - example.com
+cors_origins:
+  - https://example.com
+enable_audio_upload: true
+enable_url_processing: true
+enable_translation: true
+enable_summarization: true
+rate_limit_requests: 100
+rate_limit_window: 3600
+max_file_size: 104857600
+supported_formats:
+  - wav
+  - mp3
+  - m4a
+  - flac
+  - ogg
+  - opus
+temp_dir: /tmp/audio_processor
+
+database:
+  url: postgresql://prod_user:prod_password@prod_db_host:5432/prod_db_name
+  pool_size: 50
+  max_overflow: 100
+  echo_sql: false
+
+redis:
+  url: redis://prod_redis_host:6379/0
+  max_connections: 200
+
+auth:
+  keycloak_url: https://auth.example.com/auth
+  realm: production_realm
+  client_id: prod_client
+  client_secret: prod_secret
+
+whisperx:
+  model_size: large-v2
+  device: cuda
+  compute_type: float16
+  language: auto
+  batch_size: 16
+
+diarization:
+  model_name: pyannote/speaker-diarization
+  device: cuda
+  use_auth_token: your_huggingface_token
+
+celery:
+  broker_url: redis://prod_redis_host:6379/1
+  result_backend: redis://prod_redis_host:6379/2
+  worker_concurrency: 8
+
+summarization:
+  api_url: https://summarization.example.com/summarize
+  api_key: your_summarization_api_key

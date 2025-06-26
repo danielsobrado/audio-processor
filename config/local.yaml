@@ -1,0 +1,49 @@
+environment: development
+debug: true
+host: 0.0.0.0
+port: 8000
+log_level: INFO
+enable_audio_upload: true
+enable_url_processing: true
+enable_translation: true
+enable_summarization: true
+max_file_size: 104857600
+supported_formats:
+  - wav
+  - mp3
+  - m4a
+  - flac
+  - ogg
+  - opus
+temp_dir: /tmp/audio_processor
+
+database:
+  url: postgresql://user:password@localhost:5432/db_name
+  pool_size: 20
+
+redis:
+  url: redis://localhost:6379/0
+
+auth:
+  keycloak_url: http://localhost:8080/auth
+  realm: master
+  client_id: my_client
+  client_secret: my_secret
+
+whisperx:
+  model_size: large-v2
+  device: cpu
+  compute_type: float32
+  language: auto
+  batch_size: 8
+
+diarization:
+  model_name: pyannote/speaker-diarization
+  device: cpu
+
+celery:
+  broker_url: redis://localhost:6379/1
+  result_backend: redis://localhost:6379/2
+
+summarization:
+  api_url: http://localhost:8001/summarize
