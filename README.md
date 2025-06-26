@@ -16,7 +16,7 @@ An advanced audio processing application focused on transcription, diarization, 
 ## Technologies Used
 
 *   **Backend**: Python, FastAPI
-*   **Audio Processing**: Deepgram API (for transcription, diarization, summarization)
+*   **Audio Processing**: WhisperX use Deepgram API compatible responses
 *   **Task Queue**: Celery, Redis (as broker and backend)
 *   **Database**: PostgreSQL (via SQLAlchemy)
 *   **Migrations**: Alembic
