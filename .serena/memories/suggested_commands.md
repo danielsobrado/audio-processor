@@ -1,4 +1,4 @@
-# Suggested Commands for Development
+# Suggested Commands for Development (uv-based)
 
 ## Windows System Commands
 - **List files**: `dir` or `ls` (if using PowerShell/WSL)
@@ -8,31 +8,31 @@
 
 ## Environment Setup
 ```bash
-# Copy environment variables
+# Create .env file from example
 copy .env.example .env
 
-# Install dependencies (Poetry recommended)
-poetry install
+# Install dependencies with uv (recommended)
+uv sync --dev
 
-# Or with pip
+# Or with pip fallback
 pip install -r requirements.txt
 
 # Start database and Redis services
 docker-compose -f deployment/docker/docker-compose.yml up -d db redis
 
 # Run database migrations
-poetry run alembic upgrade head
+uv run alembic upgrade head
 # OR: alembic upgrade head
 ```
 
 ## Development Commands
 ```bash
 # Start FastAPI development server
-poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 # OR: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 # Start Celery worker (separate terminal)
-poetry run celery -A app.workers.celery_app worker -l info
+uv run celery -A app.workers.celery_app worker -l info
 # OR: celery -A app.workers.celery_app worker -l info
 
 # Start all services with Docker Compose
@@ -66,34 +66,61 @@ scripts\test-quick.bat              # Fast tests only
 .\scripts\run-tests.ps1 coverage    # With coverage
 ```
 
-### Direct pytest Commands
+### Direct uv Commands
 ```bash
 # Run all tests
-poetry run pytest
+uv run pytest
 # OR: pytest
 
 # Run with coverage
-poetry run pytest --cov=app
+uv run pytest --cov=app
 
 # Run specific test file
-poetry run pytest tests/unit/test_audio_processor.py
+uv run pytest tests/unit/test_audio_processor.py
 
 # Run integration tests only
-poetry run pytest tests/integration/
+uv run pytest tests/integration/
 
 # Run environment tests
-poetry run pytest tests/unit/test_environment.py
+uv run pytest tests/unit/test_environment.py
 ```
 
 ## Code Quality Commands
 ```bash
-# Format code (if using black/isort - not explicitly configured)
-black app/ tests/
-isort app/ tests/
+# Format code with uv
+uv run black app/ tests/
+uv run isort app/ tests/
 
-# Lint code (if using flake8/pylint - not explicitly configured)
-flake8 app/ tests/
-pylint app/
+# Lint code with uv
+uv run flake8 app/ tests/
+uv run mypy app/
+
+# All quality checks
+uv run black . && uv run isort . && uv run flake8 . && uv run mypy .
+```
+
+## Dependency Management with uv
+```bash
+# Add new dependency
+uv add package-name
+
+# Add development dependency
+uv add --dev package-name
+
+# Remove dependency
+uv remove package-name
+
+# Update dependencies
+uv sync
+
+# Install dependencies
+uv sync --dev
+
+# Show dependency tree
+uv tree
+
+# Lock dependencies
+uv lock
 ```
 
 ## API Testing
@@ -106,3 +133,17 @@ pylint app/
 - **Test documentation**: `tests/TESTING.md`
 - **Environment config**: `.env.test` (root directory)
 - **Test files**: `tests/unit/`, `tests/integration/`
+- **Project config**: `pyproject.toml` (uv + pytest + coverage configuration)
+
+## uv Installation
+```bash
+# Install uv (if not already installed)
+# On Windows
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# On macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Verify installation
+uv --version
+```

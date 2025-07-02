@@ -21,13 +21,13 @@ if (-not (Test-Path ".env.test")) {
     exit 1
 }
 
-# Check if poetry is available
-$poetryAvailable = $false
+# Check if uv is available
+$uvAvailable = $false
 try {
-    poetry --version | Out-Null
-    $poetryAvailable = $true
-    Write-Host "Using Poetry environment" -ForegroundColor Green
-    $pytestCmd = "poetry run pytest"
+    uv --version | Out-Null
+    $uvAvailable = $true
+    Write-Host "Using uv environment" -ForegroundColor Green
+    $pytestCmd = "uv run pytest"
 } catch {
     Write-Host "Using system Python environment" -ForegroundColor Yellow
     # Check if pytest is available
@@ -35,7 +35,8 @@ try {
         pytest --version | Out-Null
         $pytestCmd = "pytest"
     } catch {
-        Write-Host "Error: pytest not found! Please install pytest or use poetry." -ForegroundColor Red
+        Write-Host "Error: pytest not found! Please install uv or pytest." -ForegroundColor Red
+        Write-Host "Install uv: https://docs.astral.sh/uv/" -ForegroundColor Yellow
         exit 1
     }
 }

@@ -19,9 +19,9 @@ echo -e "${CYAN}=== Quick Test Runner (WSL/Linux) ===${NC}"
 echo -e "${YELLOW}Running unit tests and fast integration tests...${NC}"
 echo
 
-# Check for poetry
-if command -v poetry &> /dev/null; then
-    poetry run pytest -v -m "not slow" --tb=short
+# Check for uv
+if command -v uv &> /dev/null; then
+    uv run pytest -v -m "not slow" --tb=short
 else
     pytest -v -m "not slow" --tb=short
 fi

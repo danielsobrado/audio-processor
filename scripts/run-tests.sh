@@ -31,15 +31,16 @@ fi
 # Determine test type
 TEST_TYPE=${1:-all}
 
-# Check if poetry is available
-if command -v poetry &> /dev/null; then
-    echo -e "${GREEN}Using Poetry environment${NC}"
-    PYTEST_CMD="poetry run pytest"
+# Check if uv is available
+if command -v uv &> /dev/null; then
+    echo -e "${GREEN}Using uv environment${NC}"
+    PYTEST_CMD="uv run pytest"
 elif command -v pytest &> /dev/null; then
     echo -e "${YELLOW}Using system Python environment${NC}"
     PYTEST_CMD="pytest"
 else
-    echo -e "${RED}Error: pytest not found! Please install pytest or use poetry.${NC}"
+    echo -e "${RED}Error: pytest not found! Please install uv or pytest.${NC}"
+    echo -e "${YELLOW}Install uv: https://docs.astral.sh/uv/${NC}"
     exit 1
 fi
 

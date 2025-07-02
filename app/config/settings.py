@@ -9,13 +9,9 @@ from pathlib import Path
 from typing import List, Optional
 
 import yaml
-from pydantic import Field
-from pydantic import field_validator
-try:
-    from pydantic_settings import BaseSettings
-except ImportError:
-    # Fallback for older pydantic versions
-    from pydantic import BaseSettings
+from typing import Annotated
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings
 
 from app.utils.constants import (
     DEFAULT_DIARIZATION_MODEL,

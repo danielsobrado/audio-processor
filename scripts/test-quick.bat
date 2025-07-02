@@ -11,10 +11,10 @@ echo [96m=== Quick Test Runner (Windows) ===[0m
 echo [93mRunning unit tests and fast integration tests...[0m
 echo.
 
-REM Check for poetry
-poetry --version >nul 2>&1
+REM Check for uv
+uv --version >nul 2>&1
 if %errorlevel%==0 (
-    poetry run pytest -v -m "not slow" --tb=short
+    uv run pytest -v -m "not slow" --tb=short
 ) else (
     pytest -v -m "not slow" --tb=short
 )

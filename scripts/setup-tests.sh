@@ -37,22 +37,23 @@ echo -e "${BLUE}Making scripts executable...${NC}"
 chmod +x scripts/*.sh 2>/dev/null || true
 echo -e "${GREEN}✓ Scripts made executable${NC}"
 
-# Check for Poetry
-echo -e "${BLUE}Checking for Poetry...${NC}"
-if command -v poetry &> /dev/null; then
-    echo -e "${GREEN}✓ Poetry found${NC}"
-    echo -e "${BLUE}Installing dependencies with Poetry...${NC}"
-    poetry install
+# Check for uv
+echo -e "${BLUE}Checking for uv...${NC}"
+if command -v uv &> /dev/null; then
+    echo -e "${GREEN}✓ uv found${NC}"
+    echo -e "${BLUE}Syncing dependencies with uv...${NC}"
+    uv sync --dev
     echo -e "${GREEN}✓ Dependencies installed${NC}"
 elif command -v pip &> /dev/null; then
-    echo -e "${YELLOW}Poetry not found, using pip...${NC}"
+    echo -e "${YELLOW}uv not found, using pip...${NC}"
     echo -e "${GREEN}✓ pip found${NC}"
     echo -e "${BLUE}Installing test dependencies...${NC}"
     pip install pytest pytest-asyncio pytest-cov httpx
     pip install -r requirements.txt
     echo -e "${GREEN}✓ Dependencies installed${NC}"
 else
-    echo -e "${RED}Error: Neither Poetry nor pip found!${NC}"
+    echo -e "${RED}Error: Neither uv nor pip found!${NC}"
+    echo -e "${YELLOW}Install uv: https://docs.astral.sh/uv/${NC}"
     exit 1
 fi
 
