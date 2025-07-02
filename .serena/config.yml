@@ -1,0 +1,34 @@
+# Serena Project Configuration for Audio Processor
+project_name: "audio-processor"
+
+# Language server settings
+language_servers:
+  python:
+    enabled: true
+  typescript:
+    enabled: true
+  java:
+    enabled: false
+
+# Tool configuration
+tools:
+  execute_shell_command:
+    enabled: true
+  read_only: false
+
+# Memory and onboarding
+enable_onboarding: true
+enable_memories: true
+
+# File patterns to ignore
+ignore_patterns:
+  - "*.pyc"
+  - "__pycache__"
+  - "node_modules" 
+  - ".git"
+  - "*.log"
+  - "venv"
+  - ".env"
+  - "dist"
+  - "build"
+  - "*.egg-info"

@@ -9,7 +9,13 @@ from pathlib import Path
 from typing import List, Optional
 
 import yaml
-from pydantic import BaseSettings, Field, validator
+from pydantic import Field
+from pydantic import field_validator
+try:
+    from pydantic_settings import BaseSettings
+except ImportError:
+    # Fallback for older pydantic versions
+    from pydantic import BaseSettings
 
 from app.utils.constants import (
     DEFAULT_DIARIZATION_MODEL,
@@ -29,6 +35,11 @@ class DatabaseSettings(BaseSettings):
     pool_timeout: int = Field(default=30, env="DB_POOL_TIMEOUT")
     pool_recycle: int = Field(default=3600, env="DB_POOL_RECYCLE")
     echo_sql: bool = Field(default=False, env="DB_ECHO_SQL")
+    
+    model_config = {
+        "case_sensitive": False,
+        "extra": "forbid",
+    }
 
 
 class RedisSettings(BaseSettings):
@@ -38,6 +49,11 @@ class RedisSettings(BaseSettings):
     socket_connect_timeout: int = Field(default=10, env="REDIS_CONNECT_TIMEOUT")
     socket_timeout: int = Field(default=10, env="REDIS_SOCKET_TIMEOUT")
     max_connections: int = Field(default=50, env="REDIS_MAX_CONNECTIONS")
+    
+    model_config = {
+        "case_sensitive": False,
+        "extra": "forbid",
+    }
 
 
 class AuthSettings(BaseSettings):
@@ -61,6 +77,12 @@ class AuthSettings(BaseSettings):
         """Keycloak JWKS URL for public key retrieval."""
         return f"{self.issuer_url}/protocol/openid-connect/certs"
 
+    
+    model_config = {
+        "case_sensitive": False,
+        "extra": "forbid",
+    }
+
 
 class WhisperXSettings(BaseSettings):
     """WhisperX model configuration."""
@@ -74,6 +96,12 @@ class WhisperXSettings(BaseSettings):
     vad_onset: float = Field(default=0.5, env="WHISPERX_VAD_ONSET")
     vad_offset: float = Field(default=0.363, env="WHISPERX_VAD_OFFSET")
 
+    
+    model_config = {
+        "case_sensitive": False,
+        "extra": "forbid",
+    }
+
 
 class DiarizationSettings(BaseSettings):
     """Speaker diarization configuration."""
@@ -83,6 +111,12 @@ class DiarizationSettings(BaseSettings):
     use_auth_token: Optional[str] = Field(default=None, env="HUGGINGFACE_TOKEN")
     min_speakers: Optional[int] = Field(default=None, env="DIARIZATION_MIN_SPEAKERS")
     max_speakers: Optional[int] = Field(default=None, env="DIARIZATION_MAX_SPEAKERS")
+
+    
+    model_config = {
+        "case_sensitive": False,
+        "extra": "forbid",
+    }
 
 
 class CelerySettings(BaseSettings):
@@ -97,6 +131,12 @@ class CelerySettings(BaseSettings):
     enable_utc: bool = Field(default=True, env="CELERY_ENABLE_UTC")
     worker_concurrency: int = Field(default=4, env="CELERY_WORKER_CONCURRENCY")
 
+    
+    model_config = {
+        "case_sensitive": False,
+        "extra": "forbid",
+    }
+
 
 class SummarizationSettings(BaseSettings):
     """Configuration for summarization service."""
@@ -104,6 +144,12 @@ class SummarizationSettings(BaseSettings):
     api_url: str = Field(..., env="SUMMARIZATION_API_URL")
     api_key: Optional[str] = Field(None, env="SUMMARIZATION_API_KEY")
     model: str = Field("gpt-3.5-turbo", env="SUMMARIZATION_MODEL")
+
+    
+    model_config = {
+        "case_sensitive": False,
+        "extra": "forbid",
+    }
 
 
 class Settings(BaseSettings):
@@ -142,23 +188,25 @@ class Settings(BaseSettings):
     )
     temp_dir: str = Field(default=DEFAULT_TEMP_DIR, env="TEMP_DIR")
     
-    # Subsystem configurations
-    database: DatabaseSettings = DatabaseSettings()
-    redis: RedisSettings = RedisSettings()
-    auth: AuthSettings = AuthSettings()
-    whisperx: WhisperXSettings = WhisperXSettings()
-    diarization: DiarizationSettings = DiarizationSettings()
-    celery: CelerySettings = CelerySettings()
-    summarization: SummarizationSettings = SummarizationSettings()
+    # Subsystem configurations (lazy loading to avoid env var issues)
+    database: DatabaseSettings = Field(default_factory=DatabaseSettings)
+    redis: RedisSettings = Field(default_factory=RedisSettings)
+    auth: AuthSettings = Field(default_factory=AuthSettings)
+    whisperx: WhisperXSettings = Field(default_factory=WhisperXSettings)
+    diarization: DiarizationSettings = Field(default_factory=DiarizationSettings)
+    celery: CelerySettings = Field(default_factory=CelerySettings)
+    summarization: SummarizationSettings = Field(default_factory=SummarizationSettings)
     
-    @validator("cors_origins", "allowed_hosts", "supported_formats", pre=True)
+    @field_validator("cors_origins", "allowed_hosts", "supported_formats", mode="before")
+    @classmethod
     def parse_comma_separated(cls, v):
         """Parse comma-separated environment variables to lists."""
         if isinstance(v, str):
             return [item.strip() for item in v.split(",") if item.strip()]
         return v
     
-    @validator("environment")
+    @field_validator("environment")
+    @classmethod
     def validate_environment(cls, v):
         """Validate environment value."""
         valid_environments = ["development", "uat", "production", "testing"]
@@ -166,7 +214,8 @@ class Settings(BaseSettings):
             raise ValueError(f"Environment must be one of: {valid_environments}")
         return v
     
-    @validator("log_level")
+    @field_validator("log_level")
+    @classmethod
     def validate_log_level(cls, v):
         """Validate log level."""
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -174,13 +223,16 @@ class Settings(BaseSettings):
             raise ValueError(f"Log level must be one of: {valid_levels}")
         return v.upper()
     
-    class Config:
-        """Pydantic configuration."""
-        
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-        allow_population_by_field_name = True
+    model_config = {
+        # Dynamic environment file selection
+        "env_file": (
+            ".env.test" if os.getenv("ENVIRONMENT") == "testing" 
+            else ".env"
+        ),
+        "env_file_encoding": "utf-8",
+        "case_sensitive": False,
+        "validate_by_name": True,  # Replaces allow_population_by_field_name
+    }
 
 
 def load_yaml_config(config_path: Path) -> dict:
@@ -235,3 +287,43 @@ def get_settings() -> Settings:
             os.environ[key] = str(value)
     
     return Settings()
+
+
+def get_test_settings(**overrides) -> Settings:
+    """
+    Get settings for testing without caching.
+    Allows for per-test configuration overrides.
+    
+    Args:
+        **overrides: Settings to override for this test
+    
+    Returns:
+        Fresh Settings instance without caching
+    """
+    # Set test environment variables
+    test_env = {
+        "ENVIRONMENT": "testing",
+        "DEBUG": "True",
+        "SECRET_KEY": "test-secret-key",
+        "DATABASE_URL": "sqlite+aiosqlite:///./test.db",
+        "REDIS_URL": "redis://localhost:6379/15",
+        **overrides
+    }
+    
+    # Temporarily set environment variables
+    original_env = {}
+    for key, value in test_env.items():
+        original_env[key] = os.environ.get(key)
+        os.environ[key] = str(value)
+    
+    try:
+        # Create fresh settings instance
+        settings = Settings()
+        return settings
+    finally:
+        # Restore original environment
+        for key, value in original_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
