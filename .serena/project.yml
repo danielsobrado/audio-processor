@@ -1,0 +1,14 @@
+# Project configuration for audio-processor
+# language of the project (csharp, python, rust, java, typescript, javascript, go, or ruby)
+language: python
+# list of directories to ignore: either names (e.g. "temp") or relative paths (e.g. "build/foo")
+ignored_dirs: [".git", "__pycache__", "venv", ".env", "node_modules", "dist", "build", "temp", ".pytest_cache", "*.egg-info"]
+
+# list of tool names to exclude (optional)
+# excluded_tools: []
+
+# Whether to enable read-only mode (prevents modifications)
+# read_only: false
+
+# Whether to open a graphical window with Serena's logs
+# enable_gui: true

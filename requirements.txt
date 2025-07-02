@@ -3,6 +3,7 @@ uvicorn
 sqlalchemy
 alembic
 pydantic
+pydantic-settings
 python-dotenv
 celery
 deepgram-sdk
