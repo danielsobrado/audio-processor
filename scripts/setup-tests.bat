@@ -21,13 +21,13 @@ if not exist ".env.test" (
     echo [92m✓ .env.test already exists[0m
 )
 
-REM Check for Poetry
-echo [94mChecking for Poetry...[0m
-poetry --version >nul 2>&1
+REM Check for uv
+echo [94mChecking for uv...[0m
+uv --version >nul 2>&1
 if %errorlevel%==0 (
-    echo [92m✓ Poetry found[0m
-    echo [94mInstalling dependencies with Poetry...[0m
-    poetry install
+    echo [92m✓ uv found[0m
+    echo [94mSyncing dependencies with uv...[0m
+    uv sync --dev
     if !errorlevel!==0 (
         echo [92m✓ Dependencies installed[0m
     ) else (
@@ -35,7 +35,7 @@ if %errorlevel%==0 (
         exit /b 1
     )
 ) else (
-    echo [93mPoetry not found, checking pip...[0m
+    echo [93muv not found, checking pip...[0m
     pip --version >nul 2>&1
     if !errorlevel!==0 (
         echo [92m✓ pip found[0m
@@ -49,7 +49,8 @@ if %errorlevel%==0 (
             exit /b 1
         )
     ) else (
-        echo [91mError: Neither Poetry nor pip found![0m
+        echo [91mError: Neither uv nor pip found![0m
+        echo [93mInstall uv: https://docs.astral.sh/uv/[0m
         exit /b 1
     )
 )

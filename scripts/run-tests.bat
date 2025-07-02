@@ -27,19 +27,21 @@ if "%TEST_TYPE%"=="" set TEST_TYPE=all
 REM Base pytest command
 set PYTEST_CMD=pytest
 
-REM Check if poetry is available
-poetry --version >nul 2>&1
+REM Check if uv is available
+uv --version >nul 2>&1
 if %errorlevel%==0 (
-    echo [92mUsing Poetry environment[0m
-    set PYTEST_CMD=poetry run pytest
+    echo [92mUsing uv environment[0m
+    set PYTEST_CMD=uv run pytest
 ) else (
-    echo [93mUsing system Python environment[0m
+    echo [93mFalling back to system Python environment[0m
     REM Check if pytest is available
     pytest --version >nul 2>&1
     if !errorlevel! neq 0 (
-        echo [91mError: pytest not found! Please install pytest or use poetry.[0m
+        echo [91mError: pytest not found! Please install uv or pytest.[0m
+        echo [93mInstall uv: https://docs.astral.sh/uv/[0m
         exit /b 1
     )
+    set PYTEST_CMD=pytest
 )
 
 echo [96mRunning tests with environment: %ENVIRONMENT%[0m
