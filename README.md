@@ -15,14 +15,15 @@ An advanced audio processing application focused on transcription, diarization, 
 
 ## Technologies Used
 
-*   **Backend**: Python, FastAPI
+*   **Backend**: Python 3.11+, FastAPI
 *   **Audio Processing**: WhisperX use Deepgram API compatible responses
 *   **Task Queue**: Celery, Redis (as broker and backend)
 *   **Database**: PostgreSQL (via SQLAlchemy)
 *   **Migrations**: Alembic
 *   **Containerization**: Docker
 *   **Orchestration**: Kubernetes
-*   **Testing**: Pytest
+*   **Dependency Management**: uv (fast Python package manager)
+*   **Testing**: Pytest with comprehensive test infrastructure
 
 ## Setup and Installation
 
@@ -30,10 +31,12 @@ Follow these steps to set up the project locally.
 
 ### Prerequisites
 
-*   Python 3.9+
-*   Poetry (recommended for dependency management, install with `pip install poetry`)
+*   Python 3.11+
+*   uv (recommended for dependency management, install from [astral.sh/uv](https://docs.astral.sh/uv/getting-started/installation/))
 *   Docker (for running services like Redis and PostgreSQL)
 *   Deepgram API Key (get one from [Deepgram](https://deepgram.com/))
+
+> **Note**: This project has migrated from Poetry to uv for faster dependency management. If you have an existing setup with Poetry, you can migrate by running `uv sync --dev` after installing uv.
 
 ### 1. Clone the repository
 
@@ -54,10 +57,10 @@ Edit the `.env` file and fill in your `DEEPGRAM_API_KEY`. You might also want to
 
 ### 3. Install Dependencies
 
-Using Poetry:
+Using uv (recommended):
 
 ```bash
-poetry install
+uv sync --dev
 ```
 
 If you prefer pip:
@@ -66,7 +69,24 @@ If you prefer pip:
 pip install -r requirements.txt
 ```
 
-### 4. Database Setup
+### 4. Install uv (if not already installed)
+
+**Windows:**
+```powershell
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+**macOS/Linux:**
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Verify installation:**
+```bash
+uv --version
+```
+
+### 5. Database Setup
 
 Ensure Docker is running. Then, start the PostgreSQL and Redis containers using Docker Compose:
 
@@ -77,10 +97,10 @@ docker-compose -f deployment/docker/docker-compose.yml up -d db redis
 Run database migrations:
 
 ```bash
-poetry run alembic upgrade head
+uv run alembic upgrade head
 ```
 
-If you're not using Poetry:
+If you're not using uv:
 
 ```bash
 alembic upgrade head
@@ -93,9 +113,9 @@ alembic upgrade head
 1.  **Start Services**: Ensure PostgreSQL and Redis are running (e.g., via `docker-compose up -d db redis`).
 2.  **Run FastAPI Application**:
     ```bash
-    poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ```
-    If you're not using Poetry:
+    If you're not using uv:
     ```bash
     uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ```
@@ -103,9 +123,9 @@ alembic upgrade head
 
 3.  **Run Celery Worker**: Open a new terminal and run:
     ```bash
-    poetry run celery -A app.workers.celery_app worker -l info
+    uv run celery -A app.workers.celery_app worker -l info
     ```
-    If you're not using Poetry:
+    If you're not using uv:
     ```bash
     celery -A app.workers.celery_app worker -l info
     ```
@@ -145,6 +165,78 @@ The `deployment/kubernetes` directory contains YAML files for deploying the appl
     kubectl apply -f deployment/kubernetes/hpa.yaml # For Horizontal Pod Autoscaling
     ```
 
+## Dependency Management
+
+This project uses [uv](https://docs.astral.sh/uv/) for fast and reliable dependency management.
+
+### Adding Dependencies
+
+```bash
+# Add a production dependency
+uv add package-name
+
+# Add a development dependency  
+uv add --dev package-name
+
+# Add specific version
+uv add "package-name>=1.0.0,<2.0.0"
+```
+
+### Managing Dependencies
+
+```bash
+# Install all dependencies (including dev)
+uv sync --dev
+
+# Install only production dependencies
+uv sync --no-dev
+
+# Update dependencies
+uv sync
+
+# Remove a dependency
+uv remove package-name
+
+# Show dependency tree
+uv tree
+```
+
+### Why uv?
+
+- **10-100x faster** than pip and poetry
+- **Better caching** and dependency resolution
+- **Single tool** for dependency management, virtual environments, and package building
+- **Drop-in replacement** with familiar commands
+- **Cross-platform consistency**
+
+## Development Commands
+
+### Quick Reference
+
+```bash
+# Setup project
+uv sync --dev
+
+# Start development server
+uv run uvicorn app.main:app --reload
+
+# Run tests
+uv run pytest
+
+# Code formatting and linting
+uv run black .
+uv run isort .
+uv run flake8 .
+uv run mypy .
+
+# Database migrations
+uv run alembic upgrade head
+uv run alembic revision --autogenerate -m "description"
+
+# Start Celery worker
+uv run celery -A app.workers.celery_app worker -l info
+```
+
 ## API Endpoints
 
 You can access the API documentation at `http://localhost:8000/docs` (Swagger UI) or `http://localhost:8000/redoc` (ReDoc) when the application is running.
@@ -165,17 +257,114 @@ Configuration settings are managed through environment variables and YAML files 
 
 ## Testing
 
-To run the tests:
+### Using Test Scripts (Recommended)
 
-```bash
-poetry run pytest
+**Windows:**
+```cmd
+# First time setup
+scripts\setup-tests.bat
+
+# Run all tests
+scripts\run-tests.bat
+
+# Run with coverage
+scripts\run-tests.bat coverage
+
+# Quick tests only
+scripts\test-quick.bat
 ```
 
-If you're not using Poetry:
+**Linux/WSL:**
+```bash
+# First time setup
+./scripts/setup-tests.sh
 
+# Run all tests
+./scripts/run-tests.sh
+
+# Run with coverage
+./scripts/run-tests.sh coverage
+
+# Quick tests only
+./scripts/test-quick.sh
+```
+
+**PowerShell:**
+```powershell
+# Run all tests
+.\scripts\run-tests.ps1
+
+# Run with coverage
+.\scripts\run-tests.ps1 coverage
+```
+
+### Direct Commands
+
+Using uv:
+```bash
+uv run pytest
+```
+
+With coverage:
+```bash
+uv run pytest --cov=app --cov-report=html
+```
+
+If you're not using uv:
 ```bash
 pytest
 ```
+
+### Test Documentation
+
+See `tests/TESTING.md` for comprehensive testing documentation including:
+- Test environment setup
+- Available test types (unit, integration, coverage)
+- Troubleshooting guide
+- Cross-platform compatibility
+
+## Troubleshooting
+
+### Common Issues
+
+1. **uv not found**: Install uv from [astral.sh/uv](https://docs.astral.sh/uv/getting-started/installation/)
+
+2. **Permission denied (Linux/WSL)**: Make scripts executable:
+   ```bash
+   chmod +x scripts/*.sh
+   ```
+
+3. **Tests failing**: Ensure environment variables are set:
+   ```bash
+   cp .env.example .env.test
+   # Edit .env.test with test-specific values
+   ```
+
+4. **Dependencies not installing**: Try clearing cache and reinstalling:
+   ```bash
+   uv clean
+   uv sync --dev
+   ```
+
+5. **Port already in use**: Change the port in your .env file or kill the process:
+   ```bash
+   # Find process using port 8000
+   lsof -i :8000  # macOS/Linux
+   netstat -ano | findstr :8000  # Windows
+   ```
+
+### Performance Tips
+
+- Use `uv run` for consistent dependency management
+- Keep `.env.test` for isolated test environments
+- Use Docker for external services (Redis, PostgreSQL)
+- Monitor Celery worker logs for task processing issues
+
+### Getting Help
+
+- Check logs: `docker-compose logs` for containerized services
+- Verify environment: Run environment tests with `scripts/run-tests.sh env`
+- Review documentation: See `tests/TESTING.md` for testing details
 
 ## Contributing
 
