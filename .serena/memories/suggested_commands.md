@@ -93,10 +93,10 @@ uv run isort app/ tests/
 
 # Lint code with uv
 uv run flake8 app/ tests/
-uv run mypy app/
+uv run pyright app/
 
 # All quality checks
-uv run black . && uv run isort . && uv run flake8 . && uv run mypy .
+uv run black . && uv run isort . && uv run flake8 . && uv run pyright .
 ```
 
 ## Dependency Management with uv

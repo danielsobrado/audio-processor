@@ -5,7 +5,10 @@ API endpoint for checking the status of a transcription job.
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
+from typing import cast, Optional
+from datetime import datetime
+from fastapi import status
 
 from app.api.dependencies import get_current_user_id
 from app.core.job_queue import JobQueue
@@ -47,17 +50,17 @@ async def get_job_status(
         )
     
     # Check user access
-    if job.user_id != user_id:
+    if cast(str, job.user_id) != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
     
     return JobStatusResponse(
-        request_id=request_id,
-        status=job.status.value,
-        created=job.created_at,
-        updated=job.updated_at,
-        progress=job.progress,
-        error=job.error,
+        request_id=cast(str, job.request_id),
+        status=cast(str, job.status),
+        created=cast(datetime, job.created_at),
+        updated=cast(datetime, job.updated_at),
+        progress=cast(Optional[float], job.progress),
+        error=cast(Optional[str], job.error),
     )
