@@ -4,23 +4,22 @@ Handles job creation, status updates, and retrieval from the database.
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, cast
 
 from sqlalchemy.future import select
 
 from app.db.models import JobStatus, TranscriptionJob
-from app.db.session import get_database
+from app.db.session import get_database, DatabaseService
 
 logger = logging.getLogger(__name__)
 
 
 class JobQueue:
     """
-    Manages transcription jobs in the database.
-    Provides an interface for creating, updating, and querying job status.
+    Manages transcription job lifecycle and database operations.
     """
     
-    def __init__(self, db=None):
+    def __init__(self, db: Optional[DatabaseService] = None):
         self._db = db
     
     async def initialize(self):
@@ -28,6 +27,12 @@ class JobQueue:
         if not self._db:
             self._db = get_database()
         logger.info("JobQueue initialized with database connection")
+    
+    def _ensure_database(self) -> DatabaseService:
+        """Ensure database service is available with type safety."""
+        if self._db is None:
+            raise RuntimeError("JobQueue not initialized. Call initialize() first.")
+        return self._db
     
     async def create_job(
         self,
@@ -51,7 +56,7 @@ class JobQueue:
             The created TranscriptionJob object.
         """
         try:
-            async with self._db.get_session() as session:
+            async with self._ensure_database().get_async_session() as session:
                 job = TranscriptionJob(
                     request_id=request_id,
                     user_id=user_id,
@@ -81,11 +86,19 @@ class JobQueue:
             The TranscriptionJob object or None if not found.
         """
         try:
-            async with self._db.get_session() as session:
+            async with self._ensure_database().get_async_session() as session:
                 result = await session.execute(
                     select(TranscriptionJob).where(TranscriptionJob.request_id == request_id)
                 )
-                return result.scalar_one_or_none()
+                job = result.scalar_one_or_none()
+                
+                # Force attribute loading within session scope to prevent detached object issues
+                if job:
+                    # Access attributes to ensure they're loaded
+                    _ = (job.request_id, job.status, job.created_at, job.updated_at, 
+                         job.progress, job.error, job.user_id, job.task_id)
+                
+                return job
                 
         except Exception as e:
             logger.error(f"Failed to retrieve job {request_id}: {e}", exc_info=True)
@@ -115,7 +128,7 @@ class JobQueue:
             The updated TranscriptionJob object or None if not found.
         """
         try:
-            async with self._db.get_session() as session:
+            async with self._ensure_database().get_async_session() as session:
                 job = await self.get_job(request_id)
                 if not job:
                     logger.warning(f"Job {request_id} not found for update")
@@ -163,7 +176,7 @@ class JobQueue:
             A list of TranscriptionJob objects.
         """
         try:
-            async with self._db.get_session() as session:
+            async with self._ensure_database().get_async_session() as session:
                 query = select(TranscriptionJob).where(TranscriptionJob.user_id == user_id)
                 
                 if status_filter:
@@ -172,7 +185,7 @@ class JobQueue:
                 query = query.order_by(TranscriptionJob.created_at.desc()).limit(limit).offset(offset)
                 
                 result = await session.execute(query)
-                return result.scalars().all()
+                return list(result.scalars().all())
                 
         except Exception as e:
             logger.error(f"Failed to list jobs for user {user_id}: {e}", exc_info=True)

@@ -25,12 +25,12 @@ from app.utils.constants import (
 class DatabaseSettings(BaseSettings):
     """PostgreSQL database configuration."""
     
-    url: str = Field(..., env="DATABASE_URL")
-    pool_size: int = Field(default=20, env="DB_POOL_SIZE")
-    max_overflow: int = Field(default=30, env="DB_MAX_OVERFLOW")
-    pool_timeout: int = Field(default=30, env="DB_POOL_TIMEOUT")
-    pool_recycle: int = Field(default=3600, env="DB_POOL_RECYCLE")
-    echo_sql: bool = Field(default=False, env="DB_ECHO_SQL")
+    url: str = Field(default="postgresql://localhost/audio_processor_dev", alias="DATABASE_URL")
+    pool_size: int = Field(default=20, alias="DB_POOL_SIZE")
+    max_overflow: int = Field(default=30, alias="DB_MAX_OVERFLOW")
+    pool_timeout: int = Field(default=30, alias="DB_POOL_TIMEOUT")
+    pool_recycle: int = Field(default=3600, alias="DB_POOL_RECYCLE")
+    echo_sql: bool = Field(default=False, alias="DB_ECHO_SQL")
     
     model_config = {
         "case_sensitive": False,
@@ -41,10 +41,10 @@ class DatabaseSettings(BaseSettings):
 class RedisSettings(BaseSettings):
     """Redis cache configuration."""
     
-    url: str = Field(..., env="REDIS_URL")
-    socket_connect_timeout: int = Field(default=10, env="REDIS_CONNECT_TIMEOUT")
-    socket_timeout: int = Field(default=10, env="REDIS_SOCKET_TIMEOUT")
-    max_connections: int = Field(default=50, env="REDIS_MAX_CONNECTIONS")
+    url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
+    socket_connect_timeout: int = Field(default=10, alias="REDIS_CONNECT_TIMEOUT")
+    socket_timeout: int = Field(default=10, alias="REDIS_SOCKET_TIMEOUT")
+    max_connections: int = Field(default=50, alias="REDIS_MAX_CONNECTIONS")
     
     model_config = {
         "case_sensitive": False,
@@ -55,13 +55,13 @@ class RedisSettings(BaseSettings):
 class AuthSettings(BaseSettings):
     """Keycloak OAuth2 authentication configuration."""
     
-    keycloak_url: str = Field(..., env="KEYCLOAK_URL")
-    realm: str = Field(..., env="KEYCLOAK_REALM")
-    client_id: str = Field(..., env="KEYCLOAK_CLIENT_ID")
-    client_secret: str = Field(..., env="KEYCLOAK_CLIENT_SECRET")
-    algorithm: str = Field(default="RS256", env="JWT_ALGORITHM")
-    verify_signature: bool = Field(default=True, env="JWT_VERIFY_SIGNATURE")
-    verify_audience: bool = Field(default=True, env="JWT_VERIFY_AUDIENCE")
+    keycloak_url: str = Field(default="http://localhost:8080/auth", alias="KEYCLOAK_URL")
+    realm: str = Field(default="audio-processor", alias="KEYCLOAK_REALM")
+    client_id: str = Field(default="dev-client", alias="KEYCLOAK_CLIENT_ID")
+    client_secret: str = Field(default="dev-secret", alias="KEYCLOAK_CLIENT_SECRET")
+    algorithm: str = Field(default="RS256", alias="JWT_ALGORITHM")
+    verify_signature: bool = Field(default=True, alias="JWT_VERIFY_SIGNATURE")
+    verify_audience: bool = Field(default=True, alias="JWT_VERIFY_AUDIENCE")
     
     @property
     def issuer_url(self) -> str:
@@ -83,14 +83,14 @@ class AuthSettings(BaseSettings):
 class WhisperXSettings(BaseSettings):
     """WhisperX model configuration."""
     
-    model_size: str = Field(default=DEFAULT_WHISPER_MODEL, env="WHISPERX_MODEL_SIZE")
-    device: str = Field(default="cuda", env="WHISPERX_DEVICE")
-    compute_type: str = Field(default="float16", env="WHISPERX_COMPUTE_TYPE")
-    language: str = Field(default="auto", env="WHISPERX_LANGUAGE")
-    batch_size: int = Field(default=8, env="WHISPERX_BATCH_SIZE")
-    return_char_alignments: bool = Field(default=False, env="WHISPERX_CHAR_ALIGNMENTS")
-    vad_onset: float = Field(default=0.5, env="WHISPERX_VAD_ONSET")
-    vad_offset: float = Field(default=0.363, env="WHISPERX_VAD_OFFSET")
+    model_size: str = Field(default=DEFAULT_WHISPER_MODEL, alias="WHISPERX_MODEL_SIZE")
+    device: str = Field(default="cuda", alias="WHISPERX_DEVICE")
+    compute_type: str = Field(default="float16", alias="WHISPERX_COMPUTE_TYPE")
+    language: str = Field(default="auto", alias="WHISPERX_LANGUAGE")
+    batch_size: int = Field(default=8, alias="WHISPERX_BATCH_SIZE")
+    return_char_alignments: bool = Field(default=False, alias="WHISPERX_CHAR_ALIGNMENTS")
+    vad_onset: float = Field(default=0.5, alias="WHISPERX_VAD_ONSET")
+    vad_offset: float = Field(default=0.363, alias="WHISPERX_VAD_OFFSET")
 
     
     model_config = {
@@ -102,11 +102,11 @@ class WhisperXSettings(BaseSettings):
 class DiarizationSettings(BaseSettings):
     """Speaker diarization configuration."""
     
-    model_name: str = Field(default=DEFAULT_DIARIZATION_MODEL, env="DIARIZATION_MODEL")
-    device: str = Field(default="cuda", env="DIARIZATION_DEVICE")
-    use_auth_token: Optional[str] = Field(default=None, env="HUGGINGFACE_TOKEN")
-    min_speakers: Optional[int] = Field(default=None, env="DIARIZATION_MIN_SPEAKERS")
-    max_speakers: Optional[int] = Field(default=None, env="DIARIZATION_MAX_SPEAKERS")
+    model_name: str = Field(default=DEFAULT_DIARIZATION_MODEL, alias="DIARIZATION_MODEL")
+    device: str = Field(default="cuda", alias="DIARIZATION_DEVICE")
+    use_auth_token: Optional[str] = Field(default=None, alias="HUGGINGFACE_TOKEN")
+    min_speakers: Optional[int] = Field(default=None, alias="DIARIZATION_MIN_SPEAKERS")
+    max_speakers: Optional[int] = Field(default=None, alias="DIARIZATION_MAX_SPEAKERS")
 
     
     model_config = {
@@ -118,14 +118,14 @@ class DiarizationSettings(BaseSettings):
 class CelerySettings(BaseSettings):
     """Celery background task configuration."""
     
-    broker_url: str = Field(..., env="CELERY_BROKER_URL")
-    result_backend: str = Field(..., env="CELERY_RESULT_BACKEND")
-    task_serializer: str = Field(default="json", env="CELERY_TASK_SERIALIZER")
-    result_serializer: str = Field(default="json", env="CELERY_RESULT_SERIALIZER")
-    accept_content: List[str] = Field(default=["json"], env="CELERY_ACCEPT_CONTENT")
-    timezone: str = Field(default="UTC", env="CELERY_TIMEZONE")
-    enable_utc: bool = Field(default=True, env="CELERY_ENABLE_UTC")
-    worker_concurrency: int = Field(default=4, env="CELERY_WORKER_CONCURRENCY")
+    broker_url: str = Field(default="redis://localhost:6379/1", alias="CELERY_BROKER_URL")
+    result_backend: str = Field(default="redis://localhost:6379/2", alias="CELERY_RESULT_BACKEND")
+    task_serializer: str = Field(default="json", alias="CELERY_TASK_SERIALIZER")
+    result_serializer: str = Field(default="json", alias="CELERY_RESULT_SERIALIZER")
+    accept_content: List[str] = Field(default=["json"], alias="CELERY_ACCEPT_CONTENT")
+    timezone: str = Field(default="UTC", alias="CELERY_TIMEZONE")
+    enable_utc: bool = Field(default=True, alias="CELERY_ENABLE_UTC")
+    worker_concurrency: int = Field(default=4, alias="CELERY_WORKER_CONCURRENCY")
 
     
     model_config = {
@@ -137,9 +137,9 @@ class CelerySettings(BaseSettings):
 class SummarizationSettings(BaseSettings):
     """Configuration for summarization service."""
     
-    api_url: str = Field(..., env="SUMMARIZATION_API_URL")
-    api_key: Optional[str] = Field(None, env="SUMMARIZATION_API_KEY")
-    model: str = Field("gpt-3.5-turbo", env="SUMMARIZATION_MODEL")
+    api_url: str = Field(default="http://localhost:8000/api/summarize", alias="SUMMARIZATION_API_URL")
+    api_key: Optional[str] = Field(default=None, alias="SUMMARIZATION_API_KEY")
+    model: str = Field(default="gpt-3.5-turbo", alias="SUMMARIZATION_MODEL")
 
     
     model_config = {
@@ -152,46 +152,46 @@ class Settings(BaseSettings):
     """Main application settings."""
     
     # Application
-    environment: str = Field(default="development", env="ENVIRONMENT")
-    debug: bool = Field(default=False, env="DEBUG")
-    host: str = Field(default="0.0.0.0", env="HOST")
-    port: int = Field(default=8000, env="PORT")
+    environment: str = Field(default="development", alias="ENVIRONMENT")
+    debug: bool = Field(default=False, alias="DEBUG")
+    host: str = Field(default="0.0.0.0", alias="HOST")
+    port: int = Field(default=8000, alias="PORT")
     
     # Security
-    secret_key: str = Field(..., env="SECRET_KEY")
-    allowed_hosts: List[str] = Field(default=["*"], env="ALLOWED_HOSTS")
-    cors_origins: List[str] = Field(default=["*"], env="CORS_ORIGINS")
+    secret_key: str = Field(default="dev-secret-key-change-in-production", alias="SECRET_KEY")
+    allowed_hosts: List[str] = Field(default=["*"], alias="ALLOWED_HOSTS")
+    cors_origins: List[str] = Field(default=["*"], alias="CORS_ORIGINS")
     
     # Logging
-    log_level: str = Field(default="INFO", env="LOG_LEVEL")
-    log_format: str = Field(default="json", env="LOG_FORMAT")
+    log_level: str = Field(default="INFO", alias="LOG_LEVEL")
+    log_format: str = Field(default="json", alias="LOG_FORMAT")
     
     # Feature flags
-    enable_audio_upload: bool = Field(default=True, env="ENABLE_AUDIO_UPLOAD")
-    enable_url_processing: bool = Field(default=True, env="ENABLE_URL_PROCESSING")
-    enable_translation: bool = Field(default=True, env="ENABLE_TRANSLATION")
-    enable_summarization: bool = Field(default=True, env="ENABLE_SUMMARIZATION")
+    enable_audio_upload: bool = Field(default=True, alias="ENABLE_AUDIO_UPLOAD")
+    enable_url_processing: bool = Field(default=True, alias="ENABLE_URL_PROCESSING")
+    enable_translation: bool = Field(default=True, alias="ENABLE_TRANSLATION")
+    enable_summarization: bool = Field(default=True, alias="ENABLE_SUMMARIZATION")
     
     # Rate limiting
-    rate_limit_requests: int = Field(default=100, env="RATE_LIMIT_REQUESTS")
-    rate_limit_window: int = Field(default=3600, env="RATE_LIMIT_WINDOW")  # seconds
+    rate_limit_requests: int = Field(default=100, alias="RATE_LIMIT_REQUESTS")
+    rate_limit_window: int = Field(default=3600, alias="RATE_LIMIT_WINDOW")  # seconds
     
     # File processing
-    max_file_size: int = Field(default=MAX_UPLOAD_FILE_SIZE_BYTES, env="MAX_FILE_SIZE")
+    max_file_size: int = Field(default=MAX_UPLOAD_FILE_SIZE_BYTES, alias="MAX_FILE_SIZE")
     supported_formats: List[str] = Field(
         default=SUPPORTED_AUDIO_FORMATS,
-        env="SUPPORTED_FORMATS"
+        alias="SUPPORTED_FORMATS"
     )
-    temp_dir: str = Field(default=DEFAULT_TEMP_DIR, env="TEMP_DIR")
+    temp_dir: str = Field(default=DEFAULT_TEMP_DIR, alias="TEMP_DIR")
     
     # Subsystem configurations (lazy loading to avoid env var issues)
-    database: DatabaseSettings = Field(default_factory=DatabaseSettings)
-    redis: RedisSettings = Field(default_factory=RedisSettings)
-    auth: AuthSettings = Field(default_factory=AuthSettings)
-    whisperx: WhisperXSettings = Field(default_factory=WhisperXSettings)
-    diarization: DiarizationSettings = Field(default_factory=DiarizationSettings)
-    celery: CelerySettings = Field(default_factory=CelerySettings)
-    summarization: SummarizationSettings = Field(default_factory=SummarizationSettings)
+    database: DatabaseSettings = Field(default_factory=lambda: DatabaseSettings())
+    redis: RedisSettings = Field(default_factory=lambda: RedisSettings())
+    auth: AuthSettings = Field(default_factory=lambda: AuthSettings())
+    whisperx: WhisperXSettings = Field(default_factory=lambda: WhisperXSettings())
+    diarization: DiarizationSettings = Field(default_factory=lambda: DiarizationSettings())
+    celery: CelerySettings = Field(default_factory=lambda: CelerySettings())
+    summarization: SummarizationSettings = Field(default_factory=lambda: SummarizationSettings())
     
     @field_validator("cors_origins", "allowed_hosts", "supported_formats", mode="before")
     @classmethod
