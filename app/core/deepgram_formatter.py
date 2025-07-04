@@ -294,6 +294,7 @@ class DeepgramFormatter:
             "model_mappings": list(self.model_info.keys()),
             "supported_languages": self._get_supported_languages(),
         }
+
     def __init__(self):
         self.model_info = {
             "large-v2": {
@@ -334,74 +335,6 @@ class DeepgramFormatter:
             },
         }
 
-
-# Utility functions for format conversion
-
-def convert_whisperx_to_deepgram(
-    whisperx_result: Dict,
-    request_id: str,
-    model_name: str = "large-v2",
-    **options
-) -> Dict:
-    """
-    Convenience function to convert WhisperX result to Deepgram format.
-    
-    Args:
-        whisperx_result: WhisperX processing result
-        request_id: Unique request identifier
-        model_name: Model used for processing
-        **options: Additional formatting options
-    
-    Returns:
-        Deepgram-compatible response
-    """
-    formatter = DeepgramFormatter()
-    return formatter.format_transcription_result(
-        whisperx_result=whisperx_result,
-        request_id=request_id,
-        model_name=model_name,
-        **options
-    )
-
-
-def validate_deepgram_response(response: Dict) -> bool:
-    """
-    Validate Deepgram response format.
-    
-    Args:
-        response: Response to validate
-    
-    Returns:
-        True if valid, False otherwise
-    """
-    formatter = DeepgramFormatter()
-    return formatter.validate_deepgram_format(response)
-
-
-def create_error_response(
-    request_id: str,
-    error_message: str,
-    error_code: str = "processing_error"
-) -> Dict:
-    """
-    Create Deepgram-compatible error response.
-    
-    Args:
-        request_id: Request identifier
-        error_message: Error description
-        error_code: Error classification
-    
-    Returns:
-        Deepgram-compatible error response
-    """
-    formatter = DeepgramFormatter()
-    return formatter.format_error_response(
-        request_id=request_id,
-        error_message=error_message,
-        error_code=error_code,
-    )
-
-    
     def format_transcription_result(
         self,
         whisperx_result: Dict,

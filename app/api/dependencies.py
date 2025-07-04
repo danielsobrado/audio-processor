@@ -5,12 +5,13 @@ Compatible with Omi's authentication patterns.
 
 import logging
 from datetime import datetime, timezone
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import jwt
 import httpx
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jwt.algorithms import RSAAlgorithm
 from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidTokenError
 
 from app.config.settings import get_settings
@@ -29,13 +30,13 @@ def get_cache_service() -> CacheService:
     return CacheService()
 
 # Cache for JWKS keys
-_jwks_cache: Dict[str, any] = {}
+_jwks_cache: Dict[str, Any] = {}
 _jwks_cache_expiry: Optional[datetime] = None
 
 
 class AuthenticationError(HTTPException):
     """Authentication-specific HTTP exception."""
-    
+
     def __init__(self, detail: str = "Authentication failed"):
         super().__init__(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -46,7 +47,7 @@ class AuthenticationError(HTTPException):
 
 class AuthorizationError(HTTPException):
     """Authorization-specific HTTP exception."""
-    
+
     def __init__(self, detail: str = "Insufficient permissions"):
         super().__init__(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -54,18 +55,18 @@ class AuthorizationError(HTTPException):
         )
 
 
-async def get_jwks_keys() -> Dict[str, any]:
+async def get_jwks_keys() -> Dict[str, Any]:
     """
     Fetch and cache JWKS keys from Keycloak.
     TODO: Implement proper caching with TTL.
     """
     global _jwks_cache, _jwks_cache_expiry
-    
+
     # Check cache validity (5 minutes TTL)
     now = datetime.now(timezone.utc)
     if _jwks_cache and _jwks_cache_expiry and now < _jwks_cache_expiry:
         return _jwks_cache
-    
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -73,22 +74,22 @@ async def get_jwks_keys() -> Dict[str, any]:
                 timeout=10.0,
             )
             response.raise_for_status()
-            
+
             jwks_data = response.json()
-            
+
             # Convert to key dictionary for easier lookup
             keys = {}
             for key in jwks_data.get("keys", []):
                 if key.get("kid"):
                     keys[key["kid"]] = key
-            
+
             # Update cache
             _jwks_cache = keys
             _jwks_cache_expiry = now.replace(minute=now.minute + 5)
-            
+
             logger.debug(f"JWKS keys cached: {len(keys)} keys")
             return keys
-            
+
     except httpx.RequestError as e:
         logger.error(f"Failed to fetch JWKS keys: {e}")
         raise AuthenticationError("Unable to verify token signature")
@@ -97,18 +98,17 @@ async def get_jwks_keys() -> Dict[str, any]:
         raise AuthenticationError("Authentication service unavailable")
 
 
-def get_public_key_from_jwks(token_header: dict, jwks_keys: dict) -> str:
+def get_public_key_from_jwks(token_header: dict, jwks_keys: dict) -> Any:
     """Extract public key from JWKS for token verification."""
     kid = token_header.get("kid")
     if not kid:
         raise AuthenticationError("Token missing key ID")
-    
+
     key_data = jwks_keys.get(kid)
     if not key_data:
         raise AuthenticationError("Unknown key ID")
-    
+
     try:
-        from jwt.algorithms import RSAAlgorithm
         public_key = RSAAlgorithm.from_jwk(key_data)
         return public_key
     except Exception as e:
@@ -123,13 +123,13 @@ async def verify_jwt_token(token: str) -> dict:
     try:
         # Decode header without verification to get key ID
         unverified_header = jwt.get_unverified_header(token)
-        
+
         # Get JWKS keys
         jwks_keys = await get_jwks_keys()
-        
+
         # Get public key for verification
         public_key = get_public_key_from_jwks(unverified_header, jwks_keys)
-        
+
         # Verify and decode token
         payload = jwt.decode(
             token,
@@ -144,9 +144,9 @@ async def verify_jwt_token(token: str) -> dict:
                 "verify_exp": True,
             }
         )
-        
+
         return payload
-        
+
     except ExpiredSignatureError:
         raise AuthenticationError("Token has expired")
     except DecodeError:
@@ -160,19 +160,19 @@ async def verify_jwt_token(token: str) -> dict:
 
 class CurrentUser:
     """User information extracted from JWT token."""
-    
+
     def __init__(self, user_id: str, username: str, email: str, roles: list, claims: dict):
         self.user_id = user_id
         self.username = username
         self.email = email
         self.roles = roles
         self.claims = claims
-        
+
     def has_role(self, role: str) -> bool:
         """Check if user has specific role."""
         return role in self.roles
-        
-    def has_any_role(self, roles: list) -> bool:
+
+    def has_any_role(self, roles: List[str]) -> bool:
         """Check if user has any of the specified roles."""
         return any(role in self.roles for role in roles)
 
@@ -235,7 +235,7 @@ async def get_current_user_id(current_user: CurrentUser = Depends(get_current_us
     return current_user.user_id
 
 
-def require_roles(required_roles: list):
+def require_roles(required_roles: List[str]):
     """
     Dependency factory for role-based authorization.
     

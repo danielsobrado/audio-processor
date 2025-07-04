@@ -13,15 +13,15 @@ from app.db.session import get_database
 async def test_create_user():
     """Test creating a new user."""
     db = get_database()
-    async with db.get_session() as session:
-        user = User(username="testuser", email="test@example.com")
+    async with db.get_async_session() as session:
+        user = User(email="test@example.com", full_name="Test User")
         session.add(user)
         await session.commit()
         await session.refresh(user)
         
         assert user.id is not None
-        assert user.username == "testuser"
         assert user.email == "test@example.com"
+        assert user.full_name == "Test User"
         
         # Clean up
         await session.delete(user)
@@ -32,9 +32,9 @@ async def test_create_user():
 async def test_create_and_retrieve_job():
     """Test creating and retrieving a transcription job."""
     db = get_database()
-    async with db.get_session() as session:
+    async with db.get_async_session() as session:
         # Create a dummy user first
-        user = User(username="jobuser", email="job@example.com")
+        user = User(email="job@example.com", full_name="Job User")
         session.add(user)
         await session.commit()
         await session.refresh(user)

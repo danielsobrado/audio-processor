@@ -4,9 +4,9 @@ from logging.handlers import RotatingFileHandler
 from typing import Optional
 
 try:
-    from pythonjsonlogger import jsonlogger
+    from pythonjsonlogger.formatter import JsonFormatter
 except ImportError:
-    jsonlogger = None
+    JsonFormatter = None
 
 def setup_logging(
     log_level: str = "INFO",
@@ -36,8 +36,8 @@ def setup_logging(
 
     # Console Handler
     console_handler = logging.StreamHandler(sys.stdout)
-    if log_format == "json" and jsonlogger:
-        formatter = jsonlogger.JsonFormatter(
+    if log_format == "json" and JsonFormatter:
+        formatter = JsonFormatter(
             "%(levelname)s %(asctime)s %(name)s %(process)d %(thread)d %(message)s"
         )
     else:

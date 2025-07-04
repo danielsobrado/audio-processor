@@ -16,6 +16,7 @@ from app.services.conversation_graph import get_conversation_graph_service
 from app.services.speaker_graph import get_speaker_graph_service
 from app.services.topic_graph import get_topic_graph_service
 from app.config.settings import get_settings
+from app.services import graph_service
 
 logger = logging.getLogger(__name__)
 
@@ -268,11 +269,12 @@ class GraphProcessor:
         # Create relationships
         relationships = self._create_relationships(graph_data)
         all_relationships.extend(relationships)
-        
-        # Batch create nodes and relationships
+
+            # Batch create nodes and relationships
         try:
-            nodes_created = await graph_service.create_nodes_batch(all_nodes)
-            relationships_created = await graph_service.create_relationships_batch(all_relationships)
+            graph_service_instance = graph_service.get_graph_service()
+            nodes_created = await graph_service_instance.create_nodes_batch(all_nodes)
+            relationships_created = await graph_service_instance.create_relationships_batch(all_relationships)
             
             processing_time = (datetime.utcnow() - start_time).total_seconds()
             

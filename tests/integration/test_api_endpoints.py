@@ -6,20 +6,11 @@ import pytest
 from httpx import AsyncClient
 
 from app.main import app
-
-
-"""
-Integration tests for the API endpoints.
-"""
-
-import pytest
-from httpx import AsyncClient
-
-from app.main import app
+from fastapi import FastAPI
 
 
 @pytest.mark.asyncio
-async def test_health_check():
+async def test_health_check(app: FastAPI):
     """Test the /health endpoint."""
     async with AsyncClient(app=app, base_url="http://test") as client:
         response = await client.get("/api/v1/health")
@@ -31,7 +22,7 @@ async def test_health_check():
 
 
 @pytest.mark.asyncio
-async def test_root_endpoint():
+async def test_root_endpoint(app: FastAPI):
     """Test the root endpoint."""
     async with AsyncClient(app=app, base_url="http://test") as client:
         response = await client.get("/")
@@ -42,7 +33,7 @@ async def test_root_endpoint():
 
 
 @pytest.mark.asyncio
-async def test_transcribe_endpoint_requires_auth():
+async def test_transcribe_endpoint_requires_auth(app: FastAPI):
     """Test that transcribe endpoint requires authentication."""
     async with AsyncClient(app=app, base_url="http://test") as client:
         response = await client.post("/api/v1/transcribe")
@@ -59,14 +50,7 @@ async def test_app_uses_test_settings(test_settings):
     assert "15" in test_settings.redis.redis_url  # Test Redis DB
 
 
-@pytest.mark.asyncio
-async def test_root_endpoint():
-    """Test the root endpoint."""
-    async with AsyncClient(app=app, base_url="http://test") as client:
-        response = await client.get("/")
-        assert response.status_code == 200
-        assert response.json()["status"] == "healthy"
-        assert response.json()["service"] == "Audio Processing Microservice"
+
 
 # TODO: Add more comprehensive integration tests for transcribe, status, and results endpoints.
 # This would require mocking or setting up a test database, Redis, and Celery.

@@ -3,7 +3,8 @@ Unit tests for the application services.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.core.job_queue import JobQueue
 from app.services.transcription import TranscriptionService
@@ -39,9 +40,9 @@ async def test_transcription_service_submit_job(mock_job_queue):
     # Mock celery task
     with (
         # Patch the actual process_audio_async for testing
-        pytest.patch("app.services.transcription.process_audio_async") as mock_celery_task,
+        patch("app.services.transcription.process_audio_async") as mock_celery_task,
         # Patch the delay method of the mocked celery task
-        pytest.patch.object(mock_celery_task, "delay", return_value=MagicMock(id="celery-task-id"))
+        patch.object(mock_celery_task, "delay", return_value=MagicMock(id="celery-task-id"))
     ):
         result_id = await service.submit_transcription_job(request)
         
@@ -55,7 +56,7 @@ async def test_transcription_service_submit_job(mock_job_queue):
 async def test_diarization_service_diarize_audio(mock_audio_processor):
     """Test DiarizationService.diarize_audio."""
     service = DiarizationService(audio_processor=mock_audio_processor)
-    audio_path = "path/to/audio.wav"
+    audio_path = Path("path/to/audio.wav")
     
     mock_audio_processor.process_audio.return_value = {"segments": [{"speaker": "SPEAKER_00", "text": "hello"}]}
     
@@ -85,7 +86,7 @@ async def test_translation_service_translate_text():
 async def test_summarization_service_summarize_text():
     """Test SummarizationService.summarize_text."""
     # Mock settings for summarization service
-    with pytest.patch('app.services.summarization.get_settings') as mock_get_settings:
+    with patch('app.services.summarization.get_settings') as mock_get_settings:
         mock_get_settings.return_value.summarization.api_url = "http://mock-api.com/summarize"
         mock_get_settings.return_value.summarization.api_key = "mock-key"
         mock_get_settings.return_value.summarization.model = "mock-model"
@@ -94,7 +95,7 @@ async def test_summarization_service_summarize_text():
         text = "This is a long text that needs to be summarized."
         expected_summary = "This is a summary."
         
-        with pytest.patch("httpx.AsyncClient.post") as mock_post:
+        with patch("httpx.AsyncClient.post") as mock_post:
             mock_response = MagicMock()
             mock_response.raise_for_status.return_value = None
             mock_response.json.return_value = {
@@ -111,7 +112,7 @@ async def test_summarization_service_summarize_text():
 @pytest.mark.asyncio
 async def test_cache_service_set_get_delete():
     """Test CacheService set, get, and delete operations."""
-    with pytest.patch('app.services.cache.redis.from_url') as mock_from_url:
+    with patch('app.services.cache.redis.from_url') as mock_from_url:
         mock_redis_client = AsyncMock()
         mock_from_url.return_value = mock_redis_client
         

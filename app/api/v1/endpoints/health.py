@@ -5,10 +5,11 @@ API endpoint for health checks.
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_cache_service
-from app.db.session import get_session
+from app.db.session import get_async_session
 from app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ router = APIRouter()
 
 @router.get("/health", summary="Perform a health check")
 async def health_check(
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
     cache_service: CacheService = Depends(get_cache_service),
 ):
     """
@@ -28,7 +29,7 @@ async def health_check(
 
     try:
         # Check database connection
-        await session.execute("SELECT 1")
+        await session.execute(text("SELECT 1"))
         dependencies["database"] = "ok"
     except Exception as e:
         logger.error(f"Database health check failed: {e}")

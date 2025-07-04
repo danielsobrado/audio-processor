@@ -9,6 +9,7 @@ from app.services.conversation_graph import get_conversation_graph_service, Conv
 from app.services.speaker_graph import get_speaker_graph_service, SpeakerGraphService
 from app.services.topic_graph import get_topic_graph_service, TopicGraphService
 from app.models.graph import NodeType, RelationshipType
+from app.services.graph_service import get_graph_service, GraphService
 
 logger = logging.getLogger(__name__)
 
@@ -175,10 +176,10 @@ async def get_node_relationships(
             )
         
         # Parse relationship types
-        rel_types = None
+        rel_types: Optional[List[str]] = None
         if relationship_types:
             try:
-                rel_types = [RelationshipType(rt.strip()) for rt in relationship_types.split(",")]
+                rel_types = [RelationshipType(rt.strip()).value for rt in relationship_types.split(",")]
             except ValueError as e:
                 raise HTTPException(
                     status_code=400,
