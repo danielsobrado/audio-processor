@@ -11,14 +11,15 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
 
-from app.api.dependencies import CurrentUser, get_current_user_id
-from app.core.job_queue import JobQueue, JobStatus
+from app.api.dependencies import get_current_user_id
+from app.core.job_queue import JobQueue
 from app.models.requests import TranscriptionRequest
 from app.models.responses import TranscriptionResponse, JobStatusResponse
 from app.services.transcription import TranscriptionService
 from app.utils.audio_utils import validate_audio_file
 from app.utils.validators import validate_transcription_params
 from app.workers.tasks import process_audio_async
+from app.models.database import JobStatus
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +139,7 @@ async def transcribe_audio(
             user_id=user_id,
             job_type="transcription",
             parameters=request.dict(),
-            status=JobStatus.QUEUED,
+            status=JobStatus.QUEUED.value,
         )
         
         # Submit for async processing
@@ -206,7 +207,7 @@ async def get_job_status(
         )
     
     # Check user access
-    if job.user_id != user_id:
+    if str(job.user_id) != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied"
@@ -214,11 +215,11 @@ async def get_job_status(
     
     # Calculate progress based on status
     progress = 0
-    if job.status == JobStatus.QUEUED:
+    if job.status == JobStatus.QUEUED.value:
         progress = 0
-    elif job.status == JobStatus.PROCESSING:
+    elif job.status == JobStatus.PROCESSING.value:
         progress = job.progress or 50  # Default progress if not set
-    elif job.status in [JobStatus.COMPLETED, JobStatus.FAILED]:
+    elif job.status in [JobStatus.COMPLETED.value, JobStatus.FAILED.value]:
         progress = 100
     
     return JobStatusResponse(
@@ -264,20 +265,20 @@ async def get_transcription_results(
         )
     
     # Check user access
-    if job.user_id != user_id:
+    if str(job.user_id) != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied"
         )
     
     # Check job status
-    if job.status == JobStatus.FAILED:
+    if job.status == JobStatus.FAILED.value:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Job failed: {job.error or 'Unknown error'}"
         )
     
-    if job.status != JobStatus.COMPLETED:
+    if job.status != JobStatus.COMPLETED.value:
         raise HTTPException(
             status_code=status.HTTP_202_ACCEPTED,
             detail=f"Job not completed. Current status: {job.status.value}"
@@ -327,14 +328,14 @@ async def cancel_job(
         )
     
     # Check user access
-    if job.user_id != user_id:
+    if str(job.user_id) != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied"
         )
     
     # Check if job can be cancelled
-    if job.status in [JobStatus.COMPLETED, JobStatus.FAILED]:
+    if job.status in [JobStatus.COMPLETED.value, JobStatus.FAILED.value]:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Cannot cancel job with status: {job.status.value}"
@@ -349,7 +350,7 @@ async def cancel_job(
         # Update job status
         await job_queue.update_job(
             request_id,
-            status=JobStatus.FAILED,
+            status=JobStatus.FAILED.value,
             error="Cancelled by user"
         )
         

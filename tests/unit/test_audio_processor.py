@@ -30,8 +30,10 @@ async def test_process_audio(audio_processor: AudioProcessor):
     audio_path = Path("tests/fixtures/audio_samples/sample.wav")
     
     # Mock the external calls
-    audio_processor.whisper_model.transcribe.return_value = {"segments": [], "language": "en"}
-    audio_processor.diarization_pipeline.return_value = "diarization_result"
+    if audio_processor.whisper_model:
+        audio_processor.whisper_model.transcribe.return_value = AsyncMock(return_value={"segments": [], "language": "en"})
+    if audio_processor.diarization_pipeline:
+        audio_processor.diarization_pipeline.return_value = AsyncMock(return_value="diarization_result")
     
     with patch("app.core.audio_processor.whisperx.align", return_value={"segments": []}) as mock_align:
         with patch("app.core.audio_processor.whisperx.assign_word_speakers", return_value={"segments": []}) as mock_assign_speakers:

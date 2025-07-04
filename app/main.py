@@ -24,7 +24,7 @@ from app.utils.error_handlers import (
     http_exception_handler,
     validation_exception_handler,
 )
-from app.workers.celery_app import celery_app
+
 
 # Initialize settings
 settings = get_settings()
@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Initialize database connection
     try:
         db = get_database()
-        await db.create_tables()
+        await db.create_tables_async()
         logger.info("Database connection established")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
@@ -106,7 +106,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.warning(f"Graph database shutdown failed: {e}")
     
     # Close database connections
-    await db.close()
+    if db:
+        await db.close()
     
     logger.info("Application shutdown complete")
 
@@ -240,8 +241,8 @@ if __name__ == "__main__":
     
     uvicorn.run(
         "app.main:app",
-        host=settings.host,
-        port=settings.port,
+        host=settings.host or "0.0.0.0",
+        port=settings.port or 8000,
         reload=settings.environment == "development",
         log_config=None,  # Use our custom logging
         access_log=False,  # Handled by middleware

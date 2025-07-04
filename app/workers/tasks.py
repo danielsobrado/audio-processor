@@ -11,6 +11,7 @@ from app.core.audio_processor import AudioProcessor
 from app.core.deepgram_formatter import DeepgramFormatter
 from app.core.job_queue import JobQueue
 from app.db.models import JobStatus
+from typing import Optional
 from app.services.summarization import SummarizationService
 from app.workers.celery_app import celery_app
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task(bind=True, name="audio_processor.workers.tasks.process_audio")
-def process_audio_async(self, request_data: dict, audio_data: bytes = None):
+async def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = None):
     """
     Asynchronous Celery task to process audio files.
     
@@ -28,17 +29,22 @@ def process_audio_async(self, request_data: dict, audio_data: bytes = None):
     """
     
     request_id = request_data.get("request_id")
+    if request_id is None:
+        logger.error("Request ID is missing from request_data.")
+        return
+
     job_queue = JobQueue()
+    await job_queue.initialize()
     
     try:
         logger.info(f"Starting audio processing for job {request_id}")
         
         # Update job status to processing
-        job_queue.update_job(request_id, status=JobStatus.PROCESSING, progress=10.0)
+        await job_queue.update_job(request_id, status=JobStatus.PROCESSING, progress=10.0)
         
         # Initialize audio processor
         audio_processor = AudioProcessor()
-        audio_processor.initialize_models()
+        await audio_processor.initialize_models()
         
         # Handle audio source (URL or uploaded data)
         if audio_data:
@@ -51,16 +57,17 @@ def process_audio_async(self, request_data: dict, audio_data: bytes = None):
         else:
             raise ValueError("No audio data or URL provided")
         
-        job_queue.update_job(request_id, progress=30.0)
+        await job_queue.update_job(request_id, progress=30.0)
         
         # Process audio
-        processing_result = audio_processor.process_audio(
+        processing_result_coroutine = audio_processor.process_audio(
             audio_path=audio_path,
             language=request_data.get("language", "auto"),
             diarize=request_data.get("diarize", True),
         )
+        processing_result = await processing_result_coroutine
         
-        job_queue.update_job(request_id, progress=70.0)
+        await job_queue.update_job(request_id, progress=70.0)
         
         # Format results
         formatter = DeepgramFormatter()
@@ -75,7 +82,7 @@ def process_audio_async(self, request_data: dict, audio_data: bytes = None):
             utterances=request_data.get("utterances", True),
         )
         
-        job_queue.update_job(request_id, progress=90.0)
+        await job_queue.update_job(request_id, progress=90.0)
         
         # Summarization
         if request_data.get("summarize"):
@@ -127,7 +134,7 @@ def process_audio_async(self, request_data: dict, audio_data: bytes = None):
                 }
         
         # Store final result
-        job_queue.update_job(
+        await job_queue.update_job(
             request_id,
             status=JobStatus.COMPLETED,
             progress=100.0,
@@ -144,7 +151,8 @@ def process_audio_async(self, request_data: dict, audio_data: bytes = None):
         
     except Exception as e:
         logger.error(f"Audio processing for job {request_id} failed: {e}", exc_info=True)
-        job_queue.update_job(request_id, status=JobStatus.FAILED, error=str(e))
+        if request_id:
+            await job_queue.update_job(request_id, status=JobStatus.FAILED, error=str(e))
         
         # Cleanup temporary file in case of failure
         if 'audio_path' in locals() and audio_path.exists():

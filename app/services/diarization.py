@@ -3,6 +3,7 @@ Diarization service for speaker identification.
 """
 
 import logging
+from pathlib import Path
 from typing import Dict, List
 
 from app.core.audio_processor import AudioProcessor
@@ -18,7 +19,7 @@ class DiarizationService:
     def __init__(self, audio_processor: AudioProcessor):
         self.audio_processor = audio_processor
     
-    async def diarize_audio(self, audio_path: str) -> List[Dict]:
+    async def diarize_audio(self, audio_path: Path) -> List[Dict]:
         """
         Perform speaker diarization on an audio file.
         

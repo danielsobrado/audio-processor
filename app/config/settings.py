@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Union
 import yaml
 from typing import Annotated
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.utils.constants import (
     DEFAULT_DIARIZATION_MODEL,
@@ -271,7 +271,7 @@ class Settings(BaseSettings):
             raise ValueError(f"Log level must be one of: {valid_levels}")
         return v.upper()
     
-    model_config = {
+    model_config: SettingsConfigDict = {
         # Dynamic environment file selection
         "env_file": (
             ".env.test" if os.getenv("ENVIRONMENT") == "testing" 
@@ -279,7 +279,7 @@ class Settings(BaseSettings):
         ),
         "env_file_encoding": "utf-8",
         "case_sensitive": False,
-        "validate_by_name": True,  # Replaces allow_population_by_field_name
+        "populate_by_name": True,  # Replaces allow_population_by_field_name
         "extra": "ignore",  # Ignore extra fields from environment variables
     }
 

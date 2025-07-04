@@ -67,10 +67,12 @@ class Neo4jDriver(GraphDatabaseDriver):
             await self._driver.close()
             logger.info("Disconnected from Neo4j")
     
-    async def execute_read_query(self, query: str, parameters: Dict[str, Any] = None) -> List[Dict]:
+    async def execute_read_query(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict]:
         """Execute read query in Neo4j."""
         parameters = parameters or {}
         
+        if self._driver is None:
+            raise RuntimeError("Neo4j driver not initialized.")
         async with self._driver.session() as session:
             result = await session.run(query, parameters)
             records = []
@@ -78,10 +80,12 @@ class Neo4jDriver(GraphDatabaseDriver):
                 records.append(dict(record))
             return records
     
-    async def execute_write_query(self, query: str, parameters: Dict[str, Any] = None) -> List[Dict]:
+    async def execute_write_query(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict]:
         """Execute write query in Neo4j."""
         parameters = parameters or {}
         
+        if self._driver is None:
+            raise RuntimeError("Neo4j driver not initialized.")
         async with self._driver.session() as session:
             result = await session.run(query, parameters)
             records = []
@@ -93,6 +97,8 @@ class Neo4jDriver(GraphDatabaseDriver):
         """Execute multiple queries in batch in Neo4j."""
         results = []
         
+        if self._driver is None:
+            raise RuntimeError("Neo4j driver not initialized.")
         async with self._driver.session() as session:
             for query, parameters in queries:
                 result = await session.run(query, parameters or {})
@@ -136,17 +142,21 @@ class ArangoDBDriver(GraphDatabaseDriver):
             # ArangoDB client doesn't need explicit close
             logger.info("Disconnected from ArangoDB")
     
-    async def execute_read_query(self, query: str, parameters: Dict[str, Any] = None) -> List[Dict]:
+    async def execute_read_query(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict]:
         """Execute read query in ArangoDB."""
         parameters = parameters or {}
         
+        if self._db is None:
+            raise RuntimeError("ArangoDB client not initialized.")
         cursor = self._db.aql.execute(query, bind_vars=parameters)
         return list(cursor)
     
-    async def execute_write_query(self, query: str, parameters: Dict[str, Any] = None) -> List[Dict]:
+    async def execute_write_query(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict]:
         """Execute write query in ArangoDB."""
         parameters = parameters or {}
         
+        if self._db is None:
+            raise RuntimeError("ArangoDB client not initialized.")
         cursor = self._db.aql.execute(query, bind_vars=parameters)
         return list(cursor)
     
@@ -154,6 +164,8 @@ class ArangoDBDriver(GraphDatabaseDriver):
         """Execute multiple queries in batch in ArangoDB."""
         results = []
         
+        if self._db is None:
+            raise RuntimeError("ArangoDB client not initialized.")
         for query, parameters in queries:
             cursor = self._db.aql.execute(query, bind_vars=parameters or {})
             results.extend(list(cursor))
@@ -223,25 +235,29 @@ class GraphDatabaseManager:
         """Check if graph database is connected."""
         return self._is_connected
     
-    async def execute_read_transaction(self, query: str, parameters: Dict[str, Any] = None) -> List[Dict]:
+    async def execute_read_transaction(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict]:
         """Execute read transaction."""
         if not self.is_enabled or not self.is_connected:
             logger.debug("Graph database not available")
             return []
         
         try:
+            if self._driver is None:
+                raise RuntimeError("Graph database driver not initialized.")
             return await self._driver.execute_read_query(query, parameters)
         except Exception as e:
             logger.error(f"Failed to execute read transaction: {e}")
             return []
     
-    async def execute_write_transaction(self, query: str, parameters: Dict[str, Any] = None) -> List[Dict]:
+    async def execute_write_transaction(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict]:
         """Execute write transaction."""
         if not self.is_enabled or not self.is_connected:
             logger.debug("Graph database not available")
             return []
         
         try:
+            if self._driver is None:
+                raise RuntimeError("Graph database driver not initialized.")
             return await self._driver.execute_write_query(query, parameters)
         except Exception as e:
             logger.error(f"Failed to execute write transaction: {e}")
@@ -254,6 +270,8 @@ class GraphDatabaseManager:
             return []
         
         try:
+            if self._driver is None:
+                raise RuntimeError("Graph database driver not initialized.")
             return await self._driver.execute_batch_queries(queries)
         except Exception as e:
             logger.error(f"Failed to execute batch transactions: {e}")

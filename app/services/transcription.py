@@ -9,6 +9,7 @@ from typing import Optional
 from fastapi import UploadFile
 
 from app.core.job_queue import JobQueue
+from app.models.database import JobStatus
 from app.models.requests import TranscriptionRequest
 from app.workers.tasks import process_audio_async
 
@@ -68,5 +69,5 @@ class TranscriptionService:
             logger.error(f"Failed to submit transcription job: {e}", exc_info=True)
             # Mark job as failed if submission fails
             if 'job' in locals() and job:
-                await self.job_queue.update_job(job.request_id, status="failed", error=str(e))
+                await self.job_queue.update_job(str(job.request_id), status=JobStatus.FAILED, error=str(e))
             raise

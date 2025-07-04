@@ -168,7 +168,8 @@ class AudioProcessor:
                 logger.info("Starting word alignment...")
                 
                 # Load alignment model if needed
-                if not self.alignment_model or self.alignment_metadata.get("language") != detected_language:
+                if not self.alignment_model or \
+                   (self.alignment_metadata and self.alignment_metadata.get("language") != detected_language):
                     await self._load_alignment_model(detected_language)
                 
                 if self.alignment_model:
