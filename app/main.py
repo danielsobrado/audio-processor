@@ -59,6 +59,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.error(f"Job queue initialization failed: {e}")
         sys.exit(1)
     
+    # Initialize graph database connection
+    try:
+        from app.db.graph_session import graph_db_manager
+        
+        if settings.graph.enabled:
+            await graph_db_manager.initialize()
+            logger.info("Graph database connection established")
+        else:
+            logger.info("Graph processing is disabled")
+    except Exception as e:
+        logger.warning(f"Graph database initialization failed: {e}")
+        # Don't exit if graph database fails, just log the warning
+    
     # Download required models
     try:
         from app.core.audio_processor import AudioProcessor
@@ -83,6 +96,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     if hasattr(app.state, 'job_queue'):
         await app.state.job_queue.cleanup()
+    
+    # Close graph database connection
+    try:
+        from app.db.graph_session import graph_db_manager
+        await graph_db_manager.shutdown()
+        logger.info("Graph database connection closed")
+    except Exception as e:
+        logger.warning(f"Graph database shutdown failed: {e}")
     
     # Close database connections
     await db.close()

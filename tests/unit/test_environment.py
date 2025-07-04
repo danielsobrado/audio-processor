@@ -31,7 +31,7 @@ def test_get_test_settings_without_overrides():
     
     assert settings.environment == "testing"
     assert settings.debug is True
-    assert "sqlite" in settings.database.database_url.lower()
+    assert "sqlite" in settings.database.url.lower()
 
 
 def test_get_test_settings_with_overrides():

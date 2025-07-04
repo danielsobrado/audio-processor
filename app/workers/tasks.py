@@ -91,6 +91,41 @@ def process_audio_async(self, request_data: dict, audio_data: bytes = None):
         
         # TODO: Implement translation
         
+        # Graph processing
+        if request_data.get("enable_graph_processing", True):
+            try:
+                from app.core.graph_processor import graph_processor
+                
+                # Prepare graph data from the processing result
+                graph_data = {
+                    'job_id': request_id,
+                    'audio_file_id': request_data.get('audio_file_id', request_id),
+                    'language': request_data.get('language', 'auto'),
+                    'segments': processing_result.get('segments', [])
+                }
+                
+                # Process graph asynchronously
+                graph_result = asyncio.run(
+                    graph_processor.process_transcription_result(graph_data)
+                )
+                
+                # Add graph processing result to the final result
+                if 'metadata' not in deepgram_result:
+                    deepgram_result['metadata'] = {}
+                deepgram_result['metadata']['graph_processing'] = graph_result
+                
+                logger.info(f"Graph processing completed for job {request_id}")
+                
+            except Exception as e:
+                logger.warning(f"Graph processing failed for job {request_id}: {e}")
+                # Don't fail the entire job if graph processing fails
+                if 'metadata' not in deepgram_result:
+                    deepgram_result['metadata'] = {}
+                deepgram_result['metadata']['graph_processing'] = {
+                    'success': False,
+                    'error': str(e)
+                }
+        
         # Store final result
         job_queue.update_job(
             request_id,

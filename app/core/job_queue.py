@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, cast
 
 from sqlalchemy.future import select
 
-from app.db.models import JobStatus, TranscriptionJob
+from app.models.database import JobStatus, TranscriptionJob
 from app.db.session import get_database, DatabaseService
 
 logger = logging.getLogger(__name__)
