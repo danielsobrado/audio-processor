@@ -8,6 +8,10 @@ An advanced audio processing application focused on transcription, diarization, 
 *   **Speaker Diarization**: Identifies and separates different speakers in an audio recording.
 *   **Audio Summarization**: Generates concise summaries from transcribed audio content.
 *   **Translation**: Translates transcribed content.
+*   **Graph Database Integration**: Neo4j-powered conversation analysis with speaker networks and topic flows.
+*   **Speaker Network Analysis**: Analyze interaction patterns, speaking time, and turn-taking behaviors.
+*   **Topic Flow Tracking**: Track conversation transitions and keyword-based topic extraction.
+*   **Entity Extraction**: Identify and link structured data (emails, phones, dates, URLs, mentions).
 *   **Asynchronous Processing**: Utilizes a job queue (Celery) for efficient handling of long-running audio processing tasks.
 *   **RESTful API**: Provides a clean and well-documented API for interacting with the service.
 *   **Containerized Deployment**: Docker and Kubernetes support for easy deployment and scaling.
@@ -19,6 +23,7 @@ An advanced audio processing application focused on transcription, diarization, 
 *   **Audio Processing**: WhisperX use Deepgram API compatible responses
 *   **Task Queue**: Celery, Redis (as broker and backend)
 *   **Database**: PostgreSQL (via SQLAlchemy)
+*   **Graph Database**: Neo4j (for conversation analysis)
 *   **Migrations**: Alembic
 *   **Containerization**: Docker
 *   **Orchestration**: Kubernetes
@@ -105,6 +110,42 @@ If you're not using uv:
 ```bash
 alembic upgrade head
 ```
+
+### 6. Graph Database Setup (Optional)
+
+The application includes optional Neo4j integration for conversation analysis. To enable graph functionality:
+
+**Start Neo4j with Docker:**
+```bash
+docker run -d --name neo4j \
+  -p 7474:7474 -p 7687:7687 \
+  -e NEO4J_AUTH=neo4j/password \
+  neo4j:5.15-community
+```
+
+**Enable in configuration:**
+Edit your environment-specific YAML config file (e.g., `config/development.yaml`):
+```yaml
+graph:
+  enabled: true
+  neo4j:
+    url: "bolt://localhost:7687"
+    username: "neo4j"
+    password: "password"
+```
+
+**Access Neo4j Browser:**
+- URL: http://localhost:7474
+- Username: neo4j
+- Password: password
+
+The graph functionality is completely optional and the application will work normally with `graph.enabled: false`.
+
+**Graph Visualization:**
+The Neo4j Browser provides built-in graph visualization capabilities. For custom visualizations, you can use the graph API endpoints to export data for tools like:
+- D3.js for web-based visualizations
+- Cytoscape.js for network analysis
+- Gephi for advanced graph analytics
 
 ## Running the Application
 
@@ -247,6 +288,14 @@ Key endpoints include:
 *   `GET /api/v1/status/{job_id}`: Checks the status of a submitted job.
 *   `GET /api/v1/results/{job_id}`: Retrieves the results of a completed job.
 *   `GET /api/v1/health`: Health check endpoint.
+
+**Graph API Endpoints (when enabled):**
+*   `GET /api/v1/graph/stats`: Graph database statistics and connection status.
+*   `GET /api/v1/graph/speakers`: List all speakers and their interaction patterns.
+*   `GET /api/v1/graph/topics`: List all topics and their relationships.
+*   `GET /api/v1/graph/conversations/{conversation_id}`: Get complete conversation graph.
+*   `GET /api/v1/graph/speakers/{speaker_id}/network`: Get speaker's interaction network.
+*   `GET /api/v1/graph/topics/{topic_id}/flow`: Get topic flow and transitions.
 
 ## Configuration
 

@@ -6,7 +6,7 @@ Supports multiple environments with YAML configuration files.
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional, Union
 
 import yaml
 from typing import Annotated
@@ -148,6 +148,52 @@ class SummarizationSettings(BaseSettings):
     }
 
 
+class GraphDatabaseSettings(BaseSettings):
+    """Graph database connection configuration."""
+    
+    type: str = Field(default="neo4j", alias="GRAPH_DATABASE_TYPE")  # neo4j, arangodb, etc.
+    url: str = Field(default="bolt://localhost:7687", alias="GRAPH_DATABASE_URL")
+    username: str = Field(default="neo4j", alias="GRAPH_DATABASE_USERNAME")
+    password: str = Field(default="password", alias="GRAPH_DATABASE_PASSWORD")
+    name: str = Field(default="neo4j", alias="GRAPH_DATABASE_NAME")
+    
+    # Connection pool settings
+    max_connection_lifetime: int = Field(default=1800, alias="GRAPH_DATABASE_MAX_CONNECTION_LIFETIME")
+    max_connection_pool_size: int = Field(default=50, alias="GRAPH_DATABASE_MAX_CONNECTION_POOL_SIZE")
+    connection_acquisition_timeout: int = Field(default=30, alias="GRAPH_DATABASE_CONNECTION_ACQUISITION_TIMEOUT")
+    
+    model_config = {
+        "case_sensitive": False,
+        "extra": "forbid",
+    }
+
+
+class GraphSettings(BaseSettings):
+    """Graph processing configuration."""
+    
+    # Feature flag
+    enabled: bool = Field(default=False, alias="GRAPH_ENABLED")
+    
+    # Database configuration
+    database: GraphDatabaseSettings = Field(default_factory=GraphDatabaseSettings)
+    
+    # Processing configuration
+    processing_batch_size: int = Field(default=100, alias="GRAPH_PROCESSING_BATCH_SIZE")
+    processing_extraction_queue: str = Field(default="graph_extraction", alias="GRAPH_PROCESSING_EXTRACTION_QUEUE")
+    
+    # Topic extraction configuration
+    topic_extraction_method: str = Field(default="keyword_matching", alias="GRAPH_TOPIC_EXTRACTION_METHOD")
+    topic_keywords: Dict[str, List[str]] = Field(default={}, alias="GRAPH_TOPIC_KEYWORDS")
+    
+    # Entity extraction patterns
+    entity_extraction_patterns: Dict[str, str] = Field(default={}, alias="GRAPH_ENTITY_EXTRACTION_PATTERNS")
+    
+    model_config = {
+        "case_sensitive": False,
+        "extra": "forbid",
+    }
+
+
 class Settings(BaseSettings):
     """Main application settings."""
     
@@ -159,8 +205,8 @@ class Settings(BaseSettings):
     
     # Security
     secret_key: str = Field(default="dev-secret-key-change-in-production", alias="SECRET_KEY")
-    allowed_hosts: List[str] = Field(default=["*"], alias="ALLOWED_HOSTS")
-    cors_origins: List[str] = Field(default=["*"], alias="CORS_ORIGINS")
+    allowed_hosts: Union[str, List[str]] = Field(default=["*"], alias="ALLOWED_HOSTS")
+    cors_origins: Union[str, List[str]] = Field(default=["*"], alias="CORS_ORIGINS")
     
     # Logging
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
@@ -178,7 +224,7 @@ class Settings(BaseSettings):
     
     # File processing
     max_file_size: int = Field(default=MAX_UPLOAD_FILE_SIZE_BYTES, alias="MAX_FILE_SIZE")
-    supported_formats: List[str] = Field(
+    supported_formats: Union[str, List[str]] = Field(
         default=SUPPORTED_AUDIO_FORMATS,
         alias="SUPPORTED_FORMATS"
     )
@@ -192,13 +238,19 @@ class Settings(BaseSettings):
     diarization: DiarizationSettings = Field(default_factory=lambda: DiarizationSettings())
     celery: CelerySettings = Field(default_factory=lambda: CelerySettings())
     summarization: SummarizationSettings = Field(default_factory=lambda: SummarizationSettings())
+    graph: GraphSettings = Field(default_factory=lambda: GraphSettings())
     
     @field_validator("cors_origins", "allowed_hosts", "supported_formats", mode="before")
     @classmethod
     def parse_comma_separated(cls, v):
         """Parse comma-separated environment variables to lists."""
         if isinstance(v, str):
+            # Handle wildcard cases for CORS and allowed hosts
+            if v.strip() == "*":
+                return [v.strip()]
             return [item.strip() for item in v.split(",") if item.strip()]
+        elif isinstance(v, list):
+            return v
         return v
     
     @field_validator("environment")
@@ -228,6 +280,7 @@ class Settings(BaseSettings):
         "env_file_encoding": "utf-8",
         "case_sensitive": False,
         "validate_by_name": True,  # Replaces allow_population_by_field_name
+        "extra": "ignore",  # Ignore extra fields from environment variables
     }
 
 

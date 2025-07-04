@@ -59,3 +59,36 @@ celery:
 summarization:
   api_url: https://uat-summarization.example.com/summarize
   api_key: your_uat_summarization_api_key
+
+# Graph database configuration
+graph:
+  enabled: true
+  database:
+    type: neo4j  # Supported: neo4j, arangodb
+    url: bolt://uat_neo4j_host:7687
+    username: neo4j
+    password: uat_neo4j_password
+    name: neo4j
+    max_connection_lifetime: 1800
+    max_connection_pool_size: 75
+    connection_acquisition_timeout: 30
+  processing:
+    batch_size: 150
+    extraction_queue: graph_extraction
+    topic_extraction:
+      method: keyword_matching
+      keywords:
+        technology: [ai, software, computer, digital, tech, algorithm, programming, code, data, cloud, machine, learning, neural, network, api, database, framework, platform, automation, integration]
+        business: [revenue, profit, market, sales, budget, finance, investment, growth, strategy, customer, client, partnership, contract, proposal, roi, kpi, metrics, performance]
+        meeting: [agenda, action, decision, follow-up, deadline, task, schedule, appointment, presentation, discussion, summary, notes, minutes, next, steps]
+        project: [milestone, deliverable, timeline, scope, requirement, specification, development, testing, deployment, launch, phase, sprint, iteration, backlog]
+        personal: [family, vacation, health, hobby, weekend, personal, break, time, off, holiday, sick, leave, appointment, doctor, dentist]
+    entity_extraction:
+      patterns:
+        email: '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        phone: '\b\d{3}-\d{3}-\d{4}\b|\b\(\d{3}\)\s*\d{3}-\d{4}\b'
+        date: '\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b'
+        time: '\b\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm)?\b'
+        money: '\$\d+(?:,\d{3})*(?:\.\d{2})?|\b\d+(?:,\d{3})*(?:\.\d{2})?\s*(?:dollars?|USD)\b'
+        url: 'https?://[^\s<>"{}|\\^`\[\]]*'
+        mention: '@[a-zA-Z0-9_]+'

@@ -19,7 +19,7 @@ dependencies = [
     "fastapi",
     "uvicorn[standard]",
     "sqlalchemy",
-    "alembic", 
+    "alembic",
     "pydantic>=2.0",
     "pydantic-settings",
     "python-dotenv",
@@ -32,6 +32,7 @@ dependencies = [
     "PyJWT",
     "aiofiles",
     "aioredis",
+    "neo4j>=5.15.0",
 ]
 
 [project.optional-dependencies]
