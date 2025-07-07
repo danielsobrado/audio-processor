@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/health", summary="Perform a health check")
+@router.get("/health", response_model=None, summary="Perform a health check")
 async def health_check(
     session: AsyncSession = Depends(get_async_session),
     cache_service: CacheService = Depends(get_cache_service),

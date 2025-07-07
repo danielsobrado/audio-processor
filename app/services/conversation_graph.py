@@ -5,7 +5,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from app.db.graph_session import get_graph_db_manager
-from app.models.graph import (
+from app.schemas.graph import (
     ConversationNode, TranscriptSegmentNode, GraphNode, GraphRelationship
 )
 from app.config.settings import get_settings

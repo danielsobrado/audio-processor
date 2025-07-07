@@ -13,13 +13,13 @@ from fastapi.responses import JSONResponse
 
 from app.api.dependencies import get_current_user_id
 from app.core.job_queue import JobQueue
-from app.models.requests import TranscriptionRequest
-from app.models.responses import TranscriptionResponse, JobStatusResponse
+from app.schemas.requests import TranscriptionRequest
+from app.schemas.responses import TranscriptionResponse, JobStatusResponse
 from app.services.transcription import TranscriptionService
 from app.utils.audio_utils import validate_audio_file
 from app.utils.validators import validate_transcription_params
 from app.workers.tasks import process_audio_async
-from app.models.database import JobStatus
+from app.schemas.database import JobStatus
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +139,7 @@ async def transcribe_audio(
             user_id=user_id,
             job_type="transcription",
             parameters=request.dict(),
-            status=JobStatus.QUEUED.value,
+            status=JobStatus.PENDING,
         )
         
         # Submit for async processing
@@ -215,11 +215,11 @@ async def get_job_status(
     
     # Calculate progress based on status
     progress = 0
-    if job.status == JobStatus.QUEUED.value:
+    if job.status.value == JobStatus.PENDING.value:
         progress = 0
-    elif job.status == JobStatus.PROCESSING.value:
+    elif job.status.value == JobStatus.PROCESSING.value:
         progress = job.progress or 50  # Default progress if not set
-    elif job.status in [JobStatus.COMPLETED.value, JobStatus.FAILED.value]:
+    elif job.status.value in [JobStatus.COMPLETED.value, JobStatus.FAILED.value]:
         progress = 100
     
     return JobStatusResponse(
@@ -272,13 +272,13 @@ async def get_transcription_results(
         )
     
     # Check job status
-    if job.status == JobStatus.FAILED.value:
+    if job.status.value == JobStatus.FAILED.value:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Job failed: {job.error or 'Unknown error'}"
         )
     
-    if job.status != JobStatus.COMPLETED.value:
+    if job.status.value != JobStatus.COMPLETED.value:
         raise HTTPException(
             status_code=status.HTTP_202_ACCEPTED,
             detail=f"Job not completed. Current status: {job.status.value}"
@@ -335,7 +335,7 @@ async def cancel_job(
         )
     
     # Check if job can be cancelled
-    if job.status in [JobStatus.COMPLETED.value, JobStatus.FAILED.value]:
+    if job.status in [JobStatus.COMPLETED, JobStatus.FAILED]:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Cannot cancel job with status: {job.status.value}"
@@ -350,7 +350,7 @@ async def cancel_job(
         # Update job status
         await job_queue.update_job(
             request_id,
-            status=JobStatus.FAILED.value,
+            status=JobStatus.FAILED,
             error="Cancelled by user"
         )
         

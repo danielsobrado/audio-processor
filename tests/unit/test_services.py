@@ -12,7 +12,7 @@ from app.services.diarization import DiarizationService
 from app.services.translation import TranslationService
 from app.services.summarization import SummarizationService
 from app.services.cache import CacheService
-from app.models.requests import TranscriptionRequest
+from app.schemas.requests import TranscriptionRequest
 
 
 @pytest.fixture

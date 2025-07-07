@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.dependencies import get_current_user_id
 from app.core.job_queue import JobQueue
-from app.db.models import JobStatus
+from app.schemas.database import JobStatus
 
 logger = logging.getLogger(__name__)
 

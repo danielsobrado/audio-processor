@@ -10,7 +10,7 @@ from pathlib import Path
 from app.core.audio_processor import AudioProcessor
 from app.core.deepgram_formatter import DeepgramFormatter
 from app.core.job_queue import JobQueue
-from app.db.models import JobStatus
+from app.schemas.database import JobStatus
 from typing import Optional
 from app.services.summarization import SummarizationService
 from app.workers.celery_app import celery_app

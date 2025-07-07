@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from app.services.conversation_graph import get_conversation_graph_service, ConversationGraphService
 from app.services.speaker_graph import get_speaker_graph_service, SpeakerGraphService
 from app.services.topic_graph import get_topic_graph_service, TopicGraphService
-from app.models.graph import NodeType, RelationshipType
+from app.schemas.graph import NodeType, RelationshipType
 from app.services.graph_service import get_graph_service, GraphService
 
 logger = logging.getLogger(__name__)

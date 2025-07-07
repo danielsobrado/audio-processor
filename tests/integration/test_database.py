@@ -5,7 +5,7 @@ Integration tests for database interactions.
 import pytest
 from sqlalchemy.future import select
 
-from app.db.models import TranscriptionJob, User
+from app.schemas.database import TranscriptionJob, User
 from app.db.session import get_database
 
 

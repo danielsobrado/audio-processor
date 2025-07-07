@@ -1,14 +1,14 @@
 """Models package initialization and exports."""
 
 # Database models
-from app.models.database import (
+from app.schemas.database import (
     User,
     TranscriptionJob,
     JobStatus,
 )
 
 # Graph models
-from app.models.graph import (
+from app.schemas.graph import (
     NodeType,
     RelationshipType,
     GraphNode,
@@ -25,7 +25,7 @@ from app.models.graph import (
 )
 
 # API models
-from app.models.api import (
+from app.schemas.api import (
     TranscriptionRequest,
     TranscriptionResponse,
     TranscriptionResult,
