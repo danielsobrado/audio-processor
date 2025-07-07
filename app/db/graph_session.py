@@ -1,7 +1,7 @@
 """Graph database session manager with database-agnostic interface."""
 
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, cast
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 
@@ -74,7 +74,7 @@ class Neo4jDriver(GraphDatabaseDriver):
         if self._driver is None:
             raise RuntimeError("Neo4j driver not initialized.")
         async with self._driver.session() as session:
-            result = await session.run(query, parameters)
+            result = await session.run(query, parameters)  # type: ignore[arg-type]
             records = []
             async for record in result:
                 records.append(dict(record))
@@ -87,7 +87,7 @@ class Neo4jDriver(GraphDatabaseDriver):
         if self._driver is None:
             raise RuntimeError("Neo4j driver not initialized.")
         async with self._driver.session() as session:
-            result = await session.run(query, parameters)
+            result = await session.run(query, parameters)  # type: ignore[arg-type]
             records = []
             async for record in result:
                 records.append(dict(record))
@@ -144,33 +144,64 @@ class ArangoDBDriver(GraphDatabaseDriver):
     
     async def execute_read_query(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict]:
         """Execute read query in ArangoDB."""
+        import asyncio
+        import concurrent.futures
+        
         parameters = parameters or {}
         
         if self._db is None:
             raise RuntimeError("ArangoDB client not initialized.")
-        cursor = self._db.aql.execute(query, bind_vars=parameters)
-        return list(cursor)
+            
+        # Run blocking operation in thread pool to avoid blocking event loop
+        db = self._db  # Local reference for type safety
+        def _execute_blocking():
+            cursor = db.aql.execute(query, bind_vars=parameters)
+            return list(cursor)
+        
+        loop = asyncio.get_event_loop()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            return await loop.run_in_executor(executor, _execute_blocking)
     
     async def execute_write_query(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict]:
         """Execute write query in ArangoDB."""
+        import asyncio
+        import concurrent.futures
+        
         parameters = parameters or {}
         
         if self._db is None:
             raise RuntimeError("ArangoDB client not initialized.")
-        cursor = self._db.aql.execute(query, bind_vars=parameters)
-        return list(cursor)
+            
+        # Run blocking operation in thread pool to avoid blocking event loop
+        db = self._db  # Local reference for type safety
+        def _execute_blocking():
+            cursor = db.aql.execute(query, bind_vars=parameters)
+            return list(cursor)
+        
+        loop = asyncio.get_event_loop()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            return await loop.run_in_executor(executor, _execute_blocking)
     
     async def execute_batch_queries(self, queries: List[tuple]) -> List[Dict]:
         """Execute multiple queries in batch in ArangoDB."""
-        results = []
+        import asyncio
+        import concurrent.futures
         
         if self._db is None:
             raise RuntimeError("ArangoDB client not initialized.")
-        for query, parameters in queries:
-            cursor = self._db.aql.execute(query, bind_vars=parameters or {})
-            results.extend(list(cursor))
+            
+        # Run blocking operation in thread pool to avoid blocking event loop
+        db = self._db  # Local reference for type safety
+        def _execute_blocking():
+            results = []
+            for query, parameters in queries:
+                cursor = db.aql.execute(query, bind_vars=parameters or {})
+                results.extend(list(cursor))
+            return results
         
-        return results
+        loop = asyncio.get_event_loop()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            return await loop.run_in_executor(executor, _execute_blocking)
 
 
 class GraphDatabaseManager:
