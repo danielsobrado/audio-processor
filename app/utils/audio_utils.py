@@ -3,6 +3,8 @@ Audio processing utilities.
 """
 
 import logging
+import os
+import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -59,7 +61,9 @@ async def save_temp_audio_file(file: UploadFile) -> Path:
     temp_dir = Path(settings.temp_dir)
     temp_dir.mkdir(parents=True, exist_ok=True)
     
-    temp_path = temp_dir / (file.filename or "audio_file")
+    # Secure filename handling to prevent path traversal attacks
+    safe_filename = f"{uuid.uuid4()}_{os.path.basename(file.filename or 'audio_file')}"
+    temp_path = temp_dir / safe_filename
     
     try:
         async with aiofiles.open(temp_path, "wb") as temp_file:

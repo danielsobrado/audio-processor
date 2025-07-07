@@ -5,6 +5,9 @@ Compatible with Omi's authentication patterns.
 
 import logging
 from datetime import datetime, timezone
+import logging
+
+logger = logging.getLogger(__name__)
 from typing import Any, Dict, List, Optional
 
 import jwt
@@ -307,20 +310,76 @@ async def get_optional_user(
 
 # Rate limiting dependency
 class RateLimiter:
-    """Simple in-memory rate limiter for API endpoints."""
+    """Redis-based distributed rate limiter for API endpoints."""
     
     def __init__(self, max_requests: int = 100, window_seconds: int = 3600):
         self.max_requests = max_requests
         self.window_seconds = window_seconds
-        self._requests = {}  # TODO: Use Redis for distributed rate limiting
+        self._redis_client = None
+        self._fallback_requests = {}  # Fallback for when Redis is unavailable
+    
+    async def _get_redis_client(self):
+        """Get Redis client, creating it if needed."""
+        if self._redis_client is None:
+            try:
+                import redis.asyncio as redis
+                from app.config.settings import get_settings
+                settings = get_settings()
+                
+                # Use Redis URL from settings or fallback to localhost
+                redis_url = getattr(settings, 'redis_url', 'redis://localhost:6379/0')
+                self._redis_client = redis.from_url(redis_url)
+                
+                # Test connection
+                await self._redis_client.ping()
+                
+            except Exception as e:
+                logger.warning(f"Redis connection failed, falling back to in-memory: {e}")
+                self._redis_client = False  # Mark as failed
+        
+        return self._redis_client if self._redis_client is not False else None
     
     async def check_rate_limit(self, user_id: str) -> bool:
-        """Check if user has exceeded rate limit."""
+        """Check if user has exceeded rate limit using Redis or in-memory fallback."""
+        redis_client = await self._get_redis_client()
+        
+        if redis_client:
+            return await self._check_rate_limit_redis(user_id, redis_client)
+        else:
+            return await self._check_rate_limit_memory(user_id)
+    
+    async def _check_rate_limit_redis(self, user_id: str, redis_client) -> bool:
+        """Redis-based rate limiting with sliding window."""
+        try:
+            key = f"rate_limit:{user_id}"
+            now = datetime.now(timezone.utc).timestamp()
+            window_start = now - self.window_seconds
+            
+            # Remove old entries and count current requests
+            await redis_client.zremrangebyscore(key, 0, window_start)
+            current_requests = await redis_client.zcard(key)
+            
+            if current_requests >= self.max_requests:
+                return False
+            
+            # Add current request
+            await redis_client.zadd(key, {str(now): now})
+            await redis_client.expire(key, self.window_seconds)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Redis rate limiting failed: {e}")
+            # Fallback to in-memory
+            return await self._check_rate_limit_memory(user_id)
+    
+    async def _check_rate_limit_memory(self, user_id: str) -> bool:
+        """In-memory rate limiting fallback (not distributed)."""
         now = datetime.now(timezone.utc)
         window_start = now.timestamp() - self.window_seconds
         
         # Clean old entries
-        user_requests = self._requests.get(user_id, [])
+        user_requests = self._fallback_requests.get(user_id, [])
         user_requests = [req_time for req_time in user_requests if req_time > window_start]
         
         # Check limit
@@ -329,7 +388,7 @@ class RateLimiter:
         
         # Add current request
         user_requests.append(now.timestamp())
-        self._requests[user_id] = user_requests
+        self._fallback_requests[user_id] = user_requests
         
         return True
 

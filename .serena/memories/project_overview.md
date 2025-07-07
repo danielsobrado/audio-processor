@@ -21,7 +21,7 @@ Advanced audio processing application focused on:
 - Redis for caching and task brokering
 
 ## Tech Stack
-- **Backend**: Python 3.9+, FastAPI
+- **Backend**: Python 3.12+, FastAPI
 - **Audio Processing**: WhisperX, Deepgram SDK
 - **Task Queue**: Celery, Redis
 - **Database**: PostgreSQL, SQLAlchemy, Alembic

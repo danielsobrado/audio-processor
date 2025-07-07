@@ -6,15 +6,16 @@ Follows Omi's API patterns for audio processing.
 import logging
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
+import aiofiles
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from fastapi.responses import JSONResponse
 
 from app.api.dependencies import get_current_user_id
 from app.core.job_queue import JobQueue
 from app.schemas.requests import TranscriptionRequest
-from app.schemas.responses import TranscriptionResponse, JobStatusResponse
+from app.schemas.responses import TranscriptionResponse
 from app.services.transcription import TranscriptionService
 from app.utils.audio_utils import validate_audio_file
 from app.utils.validators import validate_transcription_params
@@ -107,12 +108,18 @@ async def transcribe_audio(
             # Validate audio file
             await validate_audio_file(file)
             
-            # Read file data
-            audio_data = await file.read()
+            # Save file to temporary location instead of loading into memory
+            from app.utils.audio_utils import save_temp_audio_file
+            temp_file_path = await save_temp_audio_file(file)
+            
             filename = file.filename
             content_type = file.content_type
             
-            logger.info(f"File upload: {filename} ({len(audio_data)} bytes) for user {user_id}")
+            logger.info(f"File upload: {filename} saved to {temp_file_path} for user {user_id}")
+            
+            # Pass file path instead of data to avoid memory issues
+            audio_data = None
+            audio_file_path = str(temp_file_path)
         
         # Create transcription request
         request = TranscriptionRequest(
@@ -143,9 +150,13 @@ async def transcribe_audio(
         )
         
         # Submit for async processing
+        task_data = request.dict()
+        if file:
+            task_data['audio_file_path'] = audio_file_path
+        
         task = process_audio_async.delay(
-            request_data=request.dict(),
-            audio_data=audio_data,
+            request_data=task_data,
+            audio_data=audio_data if not file else None,
         )
         
         # Update job with task ID
@@ -174,127 +185,6 @@ async def transcribe_audio(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to submit audio for processing"
         )
-
-
-@router.get(
-    "/status/{request_id}",
-    response_model=JobStatusResponse,
-    summary="Get transcription job status",
-    description="Check the processing status of a transcription job",
-)
-async def get_job_status(
-    request_id: str,
-    user_id: str = Depends(get_current_user_id),
-    job_queue: JobQueue = Depends(),
-) -> JobStatusResponse:
-    """Get status of transcription job."""
-    
-    # Validate request ID format
-    try:
-        uuid.UUID(request_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid request ID format"
-        )
-    
-    # Get job from queue
-    job = await job_queue.get_job(request_id)
-    if not job:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Job not found"
-        )
-    
-    # Check user access
-    if str(job.user_id) != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied"
-        )
-    
-    # Calculate progress based on status
-    progress = 0
-    if job.status.value == JobStatus.PENDING.value:
-        progress = 0
-    elif job.status.value == JobStatus.PROCESSING.value:
-        progress = job.progress or 50  # Default progress if not set
-    elif job.status.value in [JobStatus.COMPLETED.value, JobStatus.FAILED.value]:
-        progress = 100
-    
-    return JobStatusResponse(
-        request_id=request_id,
-        status=job.status.value,
-        created=job.created_at,
-        updated=job.updated_at,
-        progress=progress,
-        error=job.error,
-    )
-
-
-@router.get(
-    "/results/{request_id}",
-    summary="Get transcription results",
-    description="Retrieve the completed transcription results in Deepgram format",
-)
-async def get_transcription_results(
-    request_id: str,
-    user_id: str = Depends(get_current_user_id),
-    job_queue: JobQueue = Depends(),
-) -> JSONResponse:
-    """
-    Get transcription results in Deepgram-compatible format.
-    Returns the full Deepgram JSON response structure.
-    """
-    
-    # Validate request ID format
-    try:
-        uuid.UUID(request_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid request ID format"
-        )
-    
-    # Get job from queue
-    job = await job_queue.get_job(request_id)
-    if not job:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Job not found"
-        )
-    
-    # Check user access
-    if str(job.user_id) != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied"
-        )
-    
-    # Check job status
-    if job.status.value == JobStatus.FAILED.value:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Job failed: {job.error or 'Unknown error'}"
-        )
-    
-    if job.status.value != JobStatus.COMPLETED.value:
-        raise HTTPException(
-            status_code=status.HTTP_202_ACCEPTED,
-            detail=f"Job not completed. Current status: {job.status.value}"
-        )
-    
-    # Get results
-    if not job.result:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Job completed but no results available"
-        )
-    
-    logger.info(f"Transcription results retrieved for job {request_id} by user {user_id}")
-    
-    # Return Deepgram-formatted results
-    return JSONResponse(content=job.result)
 
 
 @router.delete(
