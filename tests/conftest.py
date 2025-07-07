@@ -3,9 +3,16 @@ Pytest configuration and shared fixtures for all tests.
 """
 
 import os
+import sys
 import pytest
 from unittest.mock import patch
 from functools import lru_cache
+
+# Add the project root to sys.path to ensure app package is discoverable
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Explicitly import the app package (now discoverable)
+import app
 
 # Clear the settings cache before importing anything from app
 from app.config.settings import get_settings

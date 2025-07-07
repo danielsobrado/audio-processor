@@ -11,11 +11,12 @@ import jwt
 import httpx
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jwt.algorithms import RSAAlgorithm
+import jwt.algorithms as algorithms
 from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidTokenError
 
 from app.config.settings import get_settings
 from app.services.cache import CacheService
+from app.core.job_queue import JobQueue
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -28,6 +29,12 @@ def get_cache_service() -> CacheService:
     Dependency to get a CacheService instance.
     """
     return CacheService()
+
+def get_job_queue() -> JobQueue:
+    """
+    Dependency to get a JobQueue instance.
+    """
+    return JobQueue()
 
 # Cache for JWKS keys
 _jwks_cache: Dict[str, Any] = {}
@@ -109,7 +116,7 @@ def get_public_key_from_jwks(token_header: dict, jwks_keys: dict) -> Any:
         raise AuthenticationError("Unknown key ID")
 
     try:
-        public_key = RSAAlgorithm.from_jwk(key_data)
+        public_key = algorithms.RSAAlgorithm.from_jwk(key_data)
         return public_key
     except Exception as e:
         logger.error(f"Failed to construct public key: {e}")

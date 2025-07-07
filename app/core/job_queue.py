@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, cast
 
 from sqlalchemy.future import select
 
-from app.models.database import JobStatus, TranscriptionJob
+from app.schemas.database import JobStatus, TranscriptionJob
 from app.db.session import get_database, DatabaseService
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ class JobQueue:
         user_id: str,
         job_type: str,
         parameters: Dict,
-        status: JobStatus = JobStatus.QUEUED,
+        status: JobStatus = JobStatus.PENDING,
     ) -> TranscriptionJob:
         """
         Create a new transcription job in the database.

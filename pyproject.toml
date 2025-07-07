@@ -14,7 +14,7 @@ license = {text = "MIT"}
 authors = [
     {name = "Audio Processor Team"}
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "fastapi",
     "uvicorn[standard]",
@@ -53,6 +53,8 @@ test = [
     "pytest-cov",
     "pytest-mock",
     "httpx",
+    "aiosqlite",
+    "whisperx",
 ]
 
 [project.urls]
@@ -69,9 +71,6 @@ dev = [
 minversion = "6.0"
 addopts = "-ra -q --strict-markers --strict-config"
 testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
@@ -130,7 +129,7 @@ ensure_newline_before_comments = true
 line_length = 88
 
 [tool.pyright]
-pythonVersion = "3.11"
+pythonVersion = "3.12"
 typeCheckingMode = "basic"
 reportMissingImports = false
 reportMissingTypeStubs = false
@@ -151,5 +150,5 @@ venv = ".venv"
 
 [[tool.pyright.executionEnvironments]]
 root = "."
-pythonVersion = "3.11"
+pythonVersion = "3.12"
 extraPaths = ["app"]

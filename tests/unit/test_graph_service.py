@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
 from typing import Dict, Any, List
 
-from app.services.graph import GraphService
-from app.models.graph import (
+from app.services.graph_service import GraphService
+from app.schemas.graph import (
     SpeakerNode, TopicNode, EntityNode, ConversationNode, TranscriptSegmentNode,
     NodeType, RelationshipType
 )

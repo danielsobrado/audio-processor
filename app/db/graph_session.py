@@ -24,12 +24,12 @@ class GraphDatabaseDriver(ABC):
         pass
     
     @abstractmethod
-    async def execute_read_query(self, query: str, parameters: Dict[str, Any] = None) -> List[Dict]:
+    async def execute_read_query(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict]:
         """Execute read query and return results."""
         pass
     
     @abstractmethod
-    async def execute_write_query(self, query: str, parameters: Dict[str, Any] = None) -> List[Dict]:
+    async def execute_write_query(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict]:
         """Execute write query and return results."""
         pass
     
@@ -244,7 +244,7 @@ class GraphDatabaseManager:
         try:
             if self._driver is None:
                 raise RuntimeError("Graph database driver not initialized.")
-            return await self._driver.execute_read_query(query, parameters)
+            return await self._driver.execute_read_query(query, parameters or {})
         except Exception as e:
             logger.error(f"Failed to execute read transaction: {e}")
             return []
@@ -258,7 +258,7 @@ class GraphDatabaseManager:
         try:
             if self._driver is None:
                 raise RuntimeError("Graph database driver not initialized.")
-            return await self._driver.execute_write_query(query, parameters)
+            return await self._driver.execute_write_query(query, parameters or {})
         except Exception as e:
             logger.error(f"Failed to execute write transaction: {e}")
             raise

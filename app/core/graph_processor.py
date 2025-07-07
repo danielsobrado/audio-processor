@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
 from collections import defaultdict
 
-from app.models.graph import (
+from app.schemas.graph import (
     SpeakerNode, TopicNode, EntityNode, ConversationNode, TranscriptSegmentNode,
     SpeaksInRelationship, DiscussesRelationship, MentionsRelationship, 
     FollowsRelationship, GraphNode, GraphRelationship, RelationshipType

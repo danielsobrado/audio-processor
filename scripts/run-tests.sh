@@ -5,6 +5,9 @@
 
 set -e  # Exit on error
 
+# Set PYTHONPATH to include the current directory (project root)
+export PYTHONPATH="$(pwd)"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -15,7 +18,6 @@ NC='\033[0m' # No Color
 
 # Set test environment
 export ENVIRONMENT=testing
-export PYTHONPATH="$(pwd)"
 
 echo -e "${CYAN}=== Audio Processor Test Runner (WSL/Linux) ===${NC}"
 echo

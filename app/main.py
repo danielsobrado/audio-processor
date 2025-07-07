@@ -8,6 +8,7 @@ import sys
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+import time
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -107,7 +108,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     # Close database connections
     if db:
-        await db.close()
+        await db.close_async()
     
     logger.info("Application shutdown complete")
 
@@ -167,7 +168,7 @@ def setup_middleware(app: FastAPI) -> None:
             extra={
                 "method": request.method,
                 "url": str(request.url),
-                "client_ip": request.client.host,
+                "client_ip": request.client.host if request.client else None,
                 "user_agent": request.headers.get("user-agent"),
             }
         )
@@ -196,9 +197,9 @@ def setup_exception_handlers(app: FastAPI) -> None:
     from pydantic import ValidationError
     from app.utils.error_handlers import AudioProcessingError
     
-    app.add_exception_handler(HTTPException, http_exception_handler)
-    app.add_exception_handler(ValidationError, validation_exception_handler)
-    app.add_exception_handler(AudioProcessingError, audio_processing_exception_handler)
+    app.add_exception_handler(HTTPException, http_exception_handler)  # type: ignore
+    app.add_exception_handler(ValidationError, validation_exception_handler)  # type: ignore
+    app.add_exception_handler(AudioProcessingError, audio_processing_exception_handler)  # type: ignore
     
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:

@@ -12,7 +12,7 @@ from fastapi import status
 
 from app.api.dependencies import get_current_user_id
 from app.core.job_queue import JobQueue
-from app.models.responses import JobStatusResponse
+from app.schemas.responses import JobStatusResponse
 
 logger = logging.getLogger(__name__)
 
