@@ -33,6 +33,7 @@ dependencies = [
     "aiofiles",
     "aioredis",
     "neo4j>=5.15.0",
+    "aiosqlite>=0.21.0",
 ]
 
 [project.optional-dependencies]
@@ -65,6 +66,7 @@ Issues = "https://github.com/your-org/audio-processor/issues"
 [dependency-groups]
 dev = [
     "pyright>=1.1.402",
+    "pytest-asyncio>=1.0.0",
 ]
 
 [tool.pytest.ini_options]
@@ -103,7 +105,7 @@ exclude_lines = [
 
 [tool.black]
 line-length = 88
-target-version = ['py311']
+target-version = ['py312']
 include = '\.pyi?$'
 extend-exclude = '''
 /(

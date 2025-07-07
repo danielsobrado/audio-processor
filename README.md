@@ -19,7 +19,7 @@ An advanced audio processing application focused on transcription, diarization, 
 
 ## Technologies Used
 
-*   **Backend**: Python 3.11+, FastAPI
+*   **Backend**: Python 3.12+, FastAPI
 *   **Audio Processing**: WhisperX use Deepgram API compatible responses
 *   **Task Queue**: Celery, Redis (as broker and backend)
 *   **Database**: PostgreSQL (via SQLAlchemy)
@@ -36,7 +36,7 @@ Follow these steps to set up the project locally.
 
 ### Prerequisites
 
-*   Python 3.11+
+*   Python 3.12+
 *   uv (recommended for dependency management, install from [astral.sh/uv](https://docs.astral.sh/uv/getting-started/installation/))
 *   Docker (for running services like Redis and PostgreSQL)
 *   Deepgram API Key (get one from [Deepgram](https://deepgram.com/))

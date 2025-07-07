@@ -46,7 +46,10 @@ class SummarizationService:
         }
         
         try:
-            async with httpx.AsyncClient() as client:
+            # Set timeouts to prevent hanging on slow/unresponsive services
+            timeout = httpx.Timeout(30.0, connect=10.0)  # 30s total, 10s connect
+            
+            async with httpx.AsyncClient(timeout=timeout) as client:
                 response = await client.post(self.api_url, headers=headers, json=payload)
                 response.raise_for_status()
                 
