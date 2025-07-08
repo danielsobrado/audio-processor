@@ -218,10 +218,12 @@ dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
     { name = "neo4j" },
+    { name = "passlib" },
     { name = "psycopg2-binary" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyjwt" },
+    { name = "pytest-asyncio" },
     { name = "python-dotenv" },
     { name = "python-multipart" },
     { name = "redis" },
@@ -278,6 +280,7 @@ requires-dist = [
     { name = "httpx", marker = "extra == 'test'" },
     { name = "isort", marker = "extra == 'dev'" },
     { name = "neo4j", specifier = ">=5.15.0" },
+    { name = "passlib", specifier = ">=1.7.4" },
     { name = "psycopg2-binary" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pydantic-settings" },
@@ -285,6 +288,7 @@ requires-dist = [
     { name = "pyright", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0" },
+    { name = "pytest-asyncio", specifier = ">=1.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'" },
     { name = "pytest-asyncio", marker = "extra == 'test'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
@@ -1449,6 +1453,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/d7/bf/0213986830a92d44d55153c1d69b509431a972eb73f204242988c4e66e86/pandas-2.3.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:404d681c698e3c8a40a61d0cd9412cc7364ab9a9cc6e144ae2992e11a2e77a20", size = 12470733 },
     { url = "https://files.pythonhosted.org/packages/a4/0e/21eb48a3a34a7d4bac982afc2c4eb5ab09f2d988bdf29d92ba9ae8e90a79/pandas-2.3.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:6021910b086b3ca756755e86ddc64e0ddafd5e58e076c72cb1585162e5ad259b", size = 13212406 },
     { url = "https://files.pythonhosted.org/packages/1f/d9/74017c4eec7a28892d8d6e31ae9de3baef71f5a5286e74e6b7aad7f8c837/pandas-2.3.0-cp312-cp312-win_amd64.whl", hash = "sha256:094e271a15b579650ebf4c5155c05dcd2a14fd4fdd72cf4854b2f7ad31ea30be", size = 10976199 },
+]
+
+[[package]]
+name = "passlib"
+version = "1.7.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b6/06/9da9ee59a67fae7761aab3ccc84fa4f3f33f125b370f1ccdb915bf967c11/passlib-1.7.4.tar.gz", hash = "sha256:defd50f72b65c5402ab2c573830a6978e5f202ad0d984793c8dde2c4152ebe04", size = 689844 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3b/a4/ab6b7589382ca3df236e03faa71deac88cae040af60c071a78d254a62172/passlib-1.7.4-py2.py3-none-any.whl", hash = "sha256:aa6bca462b8d8bda89c70b382f0c298a20b5560af6cbfa2dce410c0a2fb669f1", size = 525554 },
 ]
 
 [[package]]

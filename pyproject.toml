@@ -38,6 +38,8 @@ dependencies = [
     "email-validator>=2.2.0",
     "torch>=2.7.1",
     "whisperx>=3.4.2",
+    "passlib>=1.7.4",
+    "pytest-asyncio>=1.0.0",
 ]
 
 [project.optional-dependencies]

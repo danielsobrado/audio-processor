@@ -58,19 +58,40 @@ async def create_user(
     description="Get the profile of the currently authenticated user.",
 )
 async def read_current_user(
+    db: AsyncSession = Depends(get_async_session),
     current_user = Depends(get_current_user),
 ):
-    """Returns the profile of the currently authenticated user."""
-    # For now, return mock data based on current user from JWT
-    mock_datetime = datetime(2024, 1, 1)
-    return UserResponse(
-        id=hash(current_user.user_id) % 1000000,  # Mock ID
-        email=current_user.email or "user@example.com",
-        full_name=current_user.username,
-        is_active=True,
-        created_at=mock_datetime,
-        updated_at=mock_datetime
-    )
+    """
+    Returns the profile of the currently authenticated user.
+    If the user exists in the JWT but not in the local database,
+    a local profile is created automatically (Just-In-Time Provisioning).
+    """
+    try:
+        # Import here to avoid circular imports
+        from app.db import crud
+        
+        # Look for the user in our local database by email from the token
+        db_user = await crud.user.get_by_email(db, email=current_user.email)
+
+        if not db_user:
+            # User is authenticated but doesn't have a local profile yet.
+            # Create one now (JIT Provisioning).
+            logger.info(f"User '{current_user.email}' not found locally. Provisioning new user.")
+            db_user = await crud.user.create_from_token(db, token_data=current_user)
+
+        return db_user
+    except ImportError:
+        logger.error("CRUD module not available - returning mock data")
+        # Fallback to mock data if CRUD is not available
+        mock_datetime = datetime(2024, 1, 1)
+        return UserResponse(
+            id=hash(current_user.user_id) % 1000000,  # Mock ID
+            email=current_user.email or "user@example.com",
+            full_name=current_user.username,
+            is_active=True,
+            created_at=mock_datetime,
+            updated_at=mock_datetime
+        )
 
 
 @router.put(
@@ -89,13 +110,11 @@ async def update_current_user(
         # Import here to avoid circular imports
         from app.db import crud
         
-        # Get current user from database
+        # Get current user from database or create if not exists (JIT Provisioning)
         db_user = await crud.user.get_by_email(db, email=current_user.email)
         if not db_user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found in database"
-            )
+            logger.info(f"User '{current_user.email}' not found locally. Provisioning new user for update.")
+            db_user = await crud.user.create_from_token(db, token_data=current_user)
         
         updated_user = await crud.user.update(db, db_obj=db_user, obj_in=user_in)
         return updated_user
