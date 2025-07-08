@@ -53,7 +53,8 @@ async def transcribe_audio(
     
     # Advanced options
     utt_split: float = Form(0.8, description="Utterance split threshold"),
-    translate: bool = Form(False, description="Translate to English"),
+    translate: bool = Form(False, description="Translate to a target language"),
+    target_language: Optional[str] = Form(None, description="The target language for translation (e.g., 'es', 'fr'). Required if translate=True."),
     summarize: bool = Form(False, description="Generate summary"),
     
     # Webhook for completion notification
@@ -96,7 +97,14 @@ async def transcribe_audio(
             detail="Processing from a URL is currently disabled."
         )
     
-    if translate and not settings.enable_translation:
+    # Validate translation parameters
+    if translate and not target_language:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The 'target_language' parameter is required when 'translate' is set to true."
+        )
+    
+    if translate and not settings.translation.enabled:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Translation feature is currently disabled."
@@ -157,7 +165,7 @@ async def transcribe_audio(
             include_diarization=diarize if diarize is not None else False,
             include_summarization=summarize if summarize is not None else False,
             include_translation=translate if translate is not None else False,
-            target_language=None,  # Could be mapped from translate parameter if needed
+            target_language=target_language,
         )
         
         # Create job in queue

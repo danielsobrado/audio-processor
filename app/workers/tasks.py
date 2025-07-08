@@ -14,7 +14,7 @@ from app.schemas.database import JobStatus
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 from app.services.summarization import SummarizationService
-from app.workers.celery_app import celery_app, audio_processor_instance
+from app.workers.celery_app import celery_app, audio_processor_instance, translation_service_instance
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +181,24 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
                 )
                 formatter.add_summary_data(deepgram_result, summary)
             
-            # TODO: Implement translation
+            # Translation
+            if request_data.get("translate") and translation_service_instance:
+                transcript_to_translate = deepgram_result["results"]["channels"][0]["alternatives"][0]["transcript"]
+                target_lang = request_data.get("target_language")
+                source_lang = request_data.get("language", "en")  # Use detected language as source
+
+                if target_lang:
+                    logger.info(f"Translating transcript to '{target_lang}'...")
+                    translated_text = await translation_service_instance.translate_text(
+                        text=transcript_to_translate,
+                        target_language=target_lang,
+                        source_language=source_lang
+                    )
+                    # Use a dictionary for the `add_translation_data` method
+                    translations = {target_lang: translated_text}
+                    formatter.add_translation_data(deepgram_result, translations)
+                else:
+                    logger.warning("Translation requested but no target_language specified. Skipping.")
             
             # Graph processing
             if request_data.get("enable_graph_processing", True):

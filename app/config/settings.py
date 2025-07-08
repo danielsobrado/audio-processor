@@ -153,6 +153,20 @@ class SummarizationSettings(BaseSettings):
     )
 
 
+class TranslationSettings(BaseSettings):
+    """Configuration for the translation service."""
+    
+    enabled: bool = Field(default=False, alias="TRANSLATION_ENABLED")
+    provider: str = Field(default="huggingface", alias="TRANSLATION_PROVIDER")
+    model_name: str = Field(default="Helsinki-NLP/opus-mt-en-es", alias="TRANSLATION_MODEL_NAME")
+    device: str = Field(default="cpu", alias="TRANSLATION_DEVICE")
+
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        extra='forbid'
+    )
+
+
 class GraphDatabaseSettings(BaseSettings):
     """Graph database connection configuration."""
     
@@ -220,7 +234,6 @@ class Settings(BaseSettings):
     # Feature flags
     enable_audio_upload: bool = Field(default=True, alias="ENABLE_AUDIO_UPLOAD")
     enable_url_processing: bool = Field(default=True, alias="ENABLE_URL_PROCESSING")
-    enable_translation: bool = Field(default=True, alias="ENABLE_TRANSLATION")
     enable_summarization: bool = Field(default=True, alias="ENABLE_SUMMARIZATION")
     
     # Rate limiting
@@ -243,6 +256,7 @@ class Settings(BaseSettings):
     diarization: DiarizationSettings = Field(default_factory=lambda: DiarizationSettings())
     celery: CelerySettings = Field(default_factory=lambda: CelerySettings())
     summarization: SummarizationSettings = Field(default_factory=lambda: SummarizationSettings())
+    translation: TranslationSettings = Field(default_factory=lambda: TranslationSettings())
     graph: GraphSettings = Field(default_factory=lambda: GraphSettings())
     
     @field_validator("cors_origins", "allowed_hosts", "supported_formats", mode="before")

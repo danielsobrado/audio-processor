@@ -229,6 +229,7 @@ dependencies = [
     { name = "redis" },
     { name = "sqlalchemy" },
     { name = "torch" },
+    { name = "transformers" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "whisperx" },
 ]
@@ -300,6 +301,7 @@ requires-dist = [
     { name = "redis" },
     { name = "sqlalchemy" },
     { name = "torch", specifier = ">=2.7.1" },
+    { name = "transformers", specifier = ">=4.53.1" },
     { name = "uvicorn", extras = ["standard"] },
     { name = "whisperx", specifier = ">=3.4.2" },
     { name = "whisperx", marker = "extra == 'test'" },
