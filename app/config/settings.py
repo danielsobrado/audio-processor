@@ -62,6 +62,11 @@ class AuthSettings(BaseSettings):
     algorithm: str = Field(default="RS256", alias="JWT_ALGORITHM")
     verify_signature: bool = Field(default=True, alias="JWT_VERIFY_SIGNATURE")
     verify_audience: bool = Field(default=True, alias="JWT_VERIFY_AUDIENCE")
+    jwks_cache_ttl_seconds: int = Field(
+        default=300,  # 5 minutes
+        alias="JWT_JWKS_CACHE_TTL_SECONDS",
+        description="Time-to-live for the JWKS cache in seconds."
+    )
     
     @property
     def issuer_url(self) -> str:
