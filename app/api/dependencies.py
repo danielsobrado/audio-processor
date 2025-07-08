@@ -5,9 +5,6 @@ Compatible with Omi's authentication patterns.
 
 import logging
 from datetime import datetime, timezone
-import logging
-
-logger = logging.getLogger(__name__)
 from typing import Any, Dict, List, Optional
 
 import jwt
@@ -17,10 +14,11 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import jwt.algorithms as algorithms
 from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidTokenError
 
-from app.config.settings import get_settings
+from app.config.settings import get_settings, Settings
 from app.services.cache import CacheService
 from app.core.job_queue import JobQueue
 from app.services.transcription import TranscriptionService
+from app.db.session import AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -28,11 +26,25 @@ settings = get_settings()
 # HTTP Bearer token scheme
 security = HTTPBearer(auto_error=False)
 
-def get_settings_dependency():
+def get_settings_dependency() -> Settings:
     """
     Dependency to get Settings instance.
     """
     return get_settings()
+
+async def get_async_session():
+    """
+    Dependency to get async database session.
+    """
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
 
 def get_cache_service() -> CacheService:
     """

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
 
 
 # Request Models
@@ -176,15 +176,14 @@ class HealthResponse(BaseModel):
 # New User Management Models
 class UserResponse(BaseModel):
     """Response model for user information."""
+    model_config = ConfigDict(from_attributes=True)
+    
     id: int
     email: EmailStr
     full_name: Optional[str] = None
     is_active: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
 
 
 # Enhanced Graph Models

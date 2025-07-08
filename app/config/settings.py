@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Union
 
 import yaml
 from typing import Annotated
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, ConfigDict
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.utils.constants import (
@@ -32,10 +32,10 @@ class DatabaseSettings(BaseSettings):
     pool_recycle: int = Field(default=3600, alias="DB_POOL_RECYCLE")
     echo_sql: bool = Field(default=False, alias="DB_ECHO_SQL")
     
-    model_config = {
-        "case_sensitive": False,
-        "extra": "forbid",
-    }
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        extra='forbid'
+    )
 
 
 class RedisSettings(BaseSettings):
@@ -46,10 +46,10 @@ class RedisSettings(BaseSettings):
     socket_timeout: int = Field(default=10, alias="REDIS_SOCKET_TIMEOUT")
     max_connections: int = Field(default=50, alias="REDIS_MAX_CONNECTIONS")
     
-    model_config = {
-        "case_sensitive": False,
-        "extra": "forbid",
-    }
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        extra='forbid'
+    )
 
 
 class AuthSettings(BaseSettings):
@@ -74,10 +74,10 @@ class AuthSettings(BaseSettings):
         return f"{self.issuer_url}/protocol/openid-connect/certs"
 
     
-    model_config = {
-        "case_sensitive": False,
-        "extra": "forbid",
-    }
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        extra='forbid'
+    )
 
 
 class WhisperXSettings(BaseSettings):
@@ -93,10 +93,10 @@ class WhisperXSettings(BaseSettings):
     vad_offset: float = Field(default=0.363, alias="WHISPERX_VAD_OFFSET")
 
     
-    model_config = {
-        "case_sensitive": False,
-        "extra": "forbid",
-    }
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        extra='forbid'
+    )
 
 
 class DiarizationSettings(BaseSettings):
@@ -109,10 +109,10 @@ class DiarizationSettings(BaseSettings):
     max_speakers: Optional[int] = Field(default=None, alias="DIARIZATION_MAX_SPEAKERS")
 
     
-    model_config = {
-        "case_sensitive": False,
-        "extra": "forbid",
-    }
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        extra='forbid'
+    )
 
 
 class CelerySettings(BaseSettings):
@@ -128,10 +128,10 @@ class CelerySettings(BaseSettings):
     worker_concurrency: int = Field(default=4, alias="CELERY_WORKER_CONCURRENCY")
 
     
-    model_config = {
-        "case_sensitive": False,
-        "extra": "forbid",
-    }
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        extra='forbid'
+    )
 
 
 class SummarizationSettings(BaseSettings):
@@ -142,10 +142,10 @@ class SummarizationSettings(BaseSettings):
     model: str = Field(default="gpt-3.5-turbo", alias="SUMMARIZATION_MODEL")
 
     
-    model_config = {
-        "case_sensitive": False,
-        "extra": "forbid",
-    }
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        extra='forbid'
+    )
 
 
 class GraphDatabaseSettings(BaseSettings):
@@ -162,10 +162,10 @@ class GraphDatabaseSettings(BaseSettings):
     max_connection_pool_size: int = Field(default=50, alias="GRAPH_DATABASE_MAX_CONNECTION_POOL_SIZE")
     connection_acquisition_timeout: int = Field(default=30, alias="GRAPH_DATABASE_CONNECTION_ACQUISITION_TIMEOUT")
     
-    model_config = {
-        "case_sensitive": False,
-        "extra": "forbid",
-    }
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        extra='forbid'
+    )
 
 
 class GraphSettings(BaseSettings):
@@ -188,10 +188,10 @@ class GraphSettings(BaseSettings):
     # Entity extraction patterns
     entity_extraction_patterns: Dict[str, str] = Field(default={}, alias="GRAPH_ENTITY_EXTRACTION_PATTERNS")
     
-    model_config = {
-        "case_sensitive": False,
-        "extra": "forbid",
-    }
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        extra='forbid'
+    )
 
 
 class Settings(BaseSettings):
