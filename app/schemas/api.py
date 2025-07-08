@@ -46,6 +46,47 @@ class JobStatusResponse(BaseModel):
     error: Optional[str] = None
 
 
+
+class JobResponse(BaseModel):
+    """Detailed job response model for admin operations."""
+    
+    request_id: str
+    user_id: str
+    status: str
+    progress: float
+    created: datetime
+    updated: datetime
+    result: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    task_id: Optional[str] = None
+    job_type: Optional[str] = None
+    parameters: Optional[Dict[str, Any]] = None
+
+
+class AdminJobListResponse(BaseModel):
+    """Response model for admin job listing."""
+    
+    jobs: List[JobResponse]
+    total_count: int
+    limit: int
+    offset: int
+
+
+class AdminJobRequeueRequest(BaseModel):
+    """Request model for requeuing a job."""
+    
+    reason: Optional[str] = Field(None, description="Reason for requeuing the job")
+
+
+class AdminJobRequeueResponse(BaseModel):
+    """Response model for job requeue operation."""
+    
+    request_id: str
+    new_task_id: str
+    status: str
+    message: str
+
+
 class TranscriptionResponse(BaseModel):
     """Response model for transcription job submissions."""
     
