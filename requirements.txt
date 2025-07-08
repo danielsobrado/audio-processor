@@ -15,3 +15,5 @@ httpx
 PyJWT
 passlib[bcrypt]
 email-validator
+torch
+transformers

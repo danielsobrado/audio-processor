@@ -24,13 +24,16 @@ class TestFeatureFlagSettings:
         # Verify all feature flags exist and have default values
         assert hasattr(settings, 'enable_audio_upload')
         assert hasattr(settings, 'enable_url_processing')
-        assert hasattr(settings, 'enable_translation')
         assert hasattr(settings, 'enable_summarization')
+        
+        # Verify translation settings structure exists
+        assert hasattr(settings, 'translation')
+        assert hasattr(settings.translation, 'enabled')
         
         # Verify they have boolean type hints
         assert isinstance(settings.enable_audio_upload, bool)
         assert isinstance(settings.enable_url_processing, bool)
-        assert isinstance(settings.enable_translation, bool)
+        assert isinstance(settings.translation.enabled, bool)
         assert isinstance(settings.enable_summarization, bool)
 
     def test_settings_dependency_returns_correct_type(self):
@@ -48,7 +51,7 @@ class TestFeatureFlagSettings:
         env_vars = {
             'ENABLE_AUDIO_UPLOAD': 'false',
             'ENABLE_URL_PROCESSING': 'false', 
-            'ENABLE_TRANSLATION': 'false',
+            'TRANSLATION_ENABLED': 'false',
             'ENABLE_SUMMARIZATION': 'false',
         }
         
@@ -61,7 +64,7 @@ class TestFeatureFlagSettings:
             
             assert settings.enable_audio_upload is False
             assert settings.enable_url_processing is False
-            assert settings.enable_translation is False
+            assert settings.translation.enabled is False
             assert settings.enable_summarization is False
 
     def test_feature_flags_can_be_enabled_via_environment(self):
@@ -72,7 +75,7 @@ class TestFeatureFlagSettings:
         env_vars = {
             'ENABLE_AUDIO_UPLOAD': 'true',
             'ENABLE_URL_PROCESSING': 'true',
-            'ENABLE_TRANSLATION': 'true', 
+            'TRANSLATION_ENABLED': 'true', 
             'ENABLE_SUMMARIZATION': 'true',
         }
         
@@ -85,7 +88,7 @@ class TestFeatureFlagSettings:
             
             assert settings.enable_audio_upload is True
             assert settings.enable_url_processing is True
-            assert settings.enable_translation is True
+            assert settings.translation.enabled is True
             assert settings.enable_summarization is True
 
 
@@ -194,7 +197,7 @@ class TestFeatureFlagImplementation:
         # Check for each feature flag check
         assert "if file and not settings.enable_audio_upload:" in source
         assert "if audio_url and not settings.enable_url_processing:" in source  
-        assert "if translate and not settings.enable_translation:" in source
+        assert "if translate and not settings.translation.enabled:" in source
         assert "if summarize and not settings.enable_summarization:" in source
         
         # Check for appropriate error messages
@@ -244,7 +247,7 @@ class TestFeatureFlagErrorMessages:
         # Find the positions of each check
         upload_pos = content.find("if file and not settings.enable_audio_upload:")
         url_pos = content.find("if audio_url and not settings.enable_url_processing:")
-        translate_pos = content.find("if translate and not settings.enable_translation:")
+        translate_pos = content.find("if translate and not settings.translation.enabled:")
         summarize_pos = content.find("if summarize and not settings.enable_summarization:")
         
         # All checks should be present
@@ -276,26 +279,27 @@ class TestFeatureFlagDefaultValues:
         assert settings.enable_url_processing is True, "URL processing should be enabled by default"
         
         # Translation and summarization are disabled in test env, but we can verify they're boolean
-        assert isinstance(settings.enable_translation, bool), "Translation flag should be boolean"
+        assert isinstance(settings.translation.enabled, bool), "Translation flag should be boolean"
         assert isinstance(settings.enable_summarization, bool), "Summarization flag should be boolean"
 
     def test_feature_flags_environment_aliases(self):
         """Test that feature flags can be set using their environment variable aliases."""
-        from app.config.settings import Settings
+        from app.config.settings import Settings, TranslationSettings
         
         # Test that we can read the field definitions
         settings = Settings()
         
         # Get field info to verify aliases exist (using class instead of instance)
         fields = Settings.model_fields
+        translation_fields = TranslationSettings.model_fields
         
         assert 'enable_audio_upload' in fields
         assert 'enable_url_processing' in fields  
-        assert 'enable_translation' in fields
         assert 'enable_summarization' in fields
+        assert 'enabled' in translation_fields
         
         # Check that the aliases are set correctly
         assert fields['enable_audio_upload'].alias == "ENABLE_AUDIO_UPLOAD"
         assert fields['enable_url_processing'].alias == "ENABLE_URL_PROCESSING"
-        assert fields['enable_translation'].alias == "ENABLE_TRANSLATION"
         assert fields['enable_summarization'].alias == "ENABLE_SUMMARIZATION"
+        assert translation_fields['enabled'].alias == "TRANSLATION_ENABLED"
