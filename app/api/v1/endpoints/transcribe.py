@@ -13,6 +13,7 @@ import aiofiles
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from app.api.dependencies import get_current_user_id, get_settings_dependency, get_job_queue, get_transcription_service
+from app.config.settings import Settings
 from app.core.job_queue import JobQueue
 from app.schemas.api import TranscriptionRequest, TranscriptionResponse
 from app.services.transcription import TranscriptionService
@@ -62,7 +63,7 @@ async def transcribe_audio(
     user_id: str = Depends(get_current_user_id),
     transcription_service: TranscriptionService = Depends(get_transcription_service),
     job_queue: JobQueue = Depends(get_job_queue),
-    settings = Depends(get_settings_dependency),
+    settings: Settings = Depends(get_settings_dependency),
 ) -> TranscriptionResponse:
     """
     Submit audio for transcription processing.
@@ -82,11 +83,29 @@ async def transcribe_audio(
             detail="Provide either audio file or URL, not both"
         )
     
-    # Check if URL processing is enabled when audio_url is provided
+    # Feature flag checks
+    if file and not settings.enable_audio_upload:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Direct audio file uploads are currently disabled."
+        )
+    
     if audio_url and not settings.enable_url_processing:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Processing from a URL is disabled"
+            detail="Processing from a URL is currently disabled."
+        )
+    
+    if translate and not settings.enable_translation:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Translation feature is currently disabled."
+        )
+    
+    if summarize and not settings.enable_summarization:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Summarization feature is currently disabled."
         )
     
     # Validate parameters

@@ -14,7 +14,7 @@ license = {text = "MIT"}
 authors = [
     {name = "Audio Processor Team"}
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi",
     "uvicorn[standard]",
@@ -27,6 +27,7 @@ dependencies = [
     "deepgram-sdk",
     "redis",
     "psycopg2-binary",
+    "asyncpg",
     "python-multipart",
     "httpx",
     "PyJWT",
@@ -34,6 +35,9 @@ dependencies = [
     "aioredis",
     "neo4j>=5.15.0",
     "aiosqlite>=0.21.0",
+    "email-validator>=2.2.0",
+    "torch>=2.7.1",
+    "whisperx>=3.4.2",
 ]
 
 [project.optional-dependencies]
