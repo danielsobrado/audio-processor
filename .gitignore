@@ -197,3 +197,4 @@ cython_debug/
 # Ignore library folders
 app/lib/
 !app/lib/autoschema_kg
+.VSCodeCounter/
