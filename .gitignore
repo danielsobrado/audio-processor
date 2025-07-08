@@ -193,3 +193,7 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 .serena/cache/
+
+# Ignore library folders
+app/lib/
+!app/lib/autoschema_kg
