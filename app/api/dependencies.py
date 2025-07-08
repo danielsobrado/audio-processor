@@ -4,7 +4,7 @@ Compatible with Omi's authentication patterns.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 
 import jwt
@@ -94,11 +94,10 @@ class AuthorizationError(HTTPException):
 async def get_jwks_keys() -> Dict[str, Any]:
     """
     Fetch and cache JWKS keys from Keycloak.
-    TODO: Implement proper caching with TTL.
     """
     global _jwks_cache, _jwks_cache_expiry
 
-    # Check cache validity (5 minutes TTL)
+    # Check cache validity (using configurable TTL)
     now = datetime.now(timezone.utc)
     if _jwks_cache and _jwks_cache_expiry and now < _jwks_cache_expiry:
         return _jwks_cache
@@ -119,11 +118,11 @@ async def get_jwks_keys() -> Dict[str, Any]:
                 if key.get("kid"):
                     keys[key["kid"]] = key
 
-            # Update cache
+            # Update cache using configurable TTL and proper timedelta
             _jwks_cache = keys
-            _jwks_cache_expiry = now.replace(minute=now.minute + 5)
+            _jwks_cache_expiry = now + timedelta(seconds=settings.auth.jwks_cache_ttl_seconds)
 
-            logger.debug(f"JWKS keys cached: {len(keys)} keys")
+            logger.debug(f"JWKS keys cached: {len(keys)} keys for {settings.auth.jwks_cache_ttl_seconds} seconds")
             return keys
 
     except httpx.RequestError as e:
