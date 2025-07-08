@@ -27,6 +27,12 @@ settings = get_settings()
 # HTTP Bearer token scheme
 security = HTTPBearer(auto_error=False)
 
+def get_settings_dependency():
+    """
+    Dependency to get Settings instance.
+    """
+    return get_settings()
+
 def get_cache_service() -> CacheService:
     """
     Dependency to get a CacheService instance.

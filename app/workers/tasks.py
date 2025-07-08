@@ -7,6 +7,7 @@ import logging
 import tempfile
 from pathlib import Path
 
+import httpx
 from app.core.deepgram_formatter import DeepgramFormatter
 from app.core.job_queue import JobQueue
 from app.schemas.database import JobStatus
@@ -57,8 +58,26 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
                     temp_file.write(audio_data)
                     audio_path = Path(temp_file.name)
             elif request_data.get("audio_url"):
-                # TODO: Implement audio download from URL
-                raise NotImplementedError("Audio download from URL not yet implemented")
+                # Download audio from URL
+                audio_url = request_data["audio_url"]
+                logger.info(f"Downloading audio from URL: {audio_url}")
+                
+                # Use a temporary file to stream the download, avoiding memory issues
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".tmp") as temp_file:
+                    audio_path = Path(temp_file.name)
+                    try:
+                        async with httpx.AsyncClient(timeout=60.0) as client:
+                            async with client.stream("GET", audio_url, follow_redirects=True) as response:
+                                response.raise_for_status()
+                                async for chunk in response.aiter_bytes():
+                                    temp_file.write(chunk)
+                        logger.info(f"Successfully downloaded audio to {audio_path}")
+                    except Exception as e:
+                        logger.error(f"Failed to download audio from {audio_url}: {e}")
+                        # Clean up the failed download
+                        if audio_path.exists():
+                            audio_path.unlink()
+                        raise ValueError(f"Could not download or process audio from URL: {e}")
             else:
                 raise ValueError("No audio data, file path, or URL provided")
             
@@ -144,8 +163,8 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
             
             logger.info(f"Audio processing for job {request_id} completed successfully")
             
-            # Cleanup temporary file
-            if audio_data and audio_path.exists():
+            # Cleanup temporary file for both file uploads and URL downloads
+            if (audio_data or request_data.get("audio_url")) and audio_path.exists():
                 audio_path.unlink()
                 
             return {"status": "completed", "request_id": request_id}
@@ -155,7 +174,7 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
             if request_id:
                 await job_queue.update_job(request_id, status=JobStatus.FAILED, error=str(e))
             
-            # Cleanup temporary file in case of failure
+            # Cleanup temporary file in case of failure for both uploads and URL downloads
             if 'audio_path' in locals() and audio_path.exists():
                 audio_path.unlink()
                 
