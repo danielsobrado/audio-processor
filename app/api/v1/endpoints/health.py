@@ -43,10 +43,50 @@ async def health_check(
         logger.error(f"Redis health check failed: {e}")
         dependencies["redis"] = "error"
     
-    # In a real application, you would also check other dependencies
-    # like Celery, etc.
+    # Check Celery broker and workers
+    try:
+        from app.workers.celery_app import celery_app
+        
+        # Check Celery broker connection (Redis)
+        broker_info = celery_app.control.inspect().stats()
+        if broker_info:
+            dependencies["celery_broker"] = "ok"
+            
+            # Check active workers
+            active_workers = list(broker_info.keys())
+            worker_count = len(active_workers)
+            
+            if worker_count > 0:
+                dependencies["celery_workers"] = "ok"
+                dependencies["worker_count"] = worker_count
+                dependencies["active_workers"] = active_workers
+            else:
+                dependencies["celery_workers"] = "warning"
+                dependencies["worker_count"] = 0
+                dependencies["active_workers"] = []
+                logger.warning("No active Celery workers found")
+        else:
+            dependencies["celery_broker"] = "error"
+            dependencies["celery_workers"] = "error"
+            dependencies["worker_count"] = 0
+            logger.error("Unable to connect to Celery broker")
+            
+    except Exception as e:
+        logger.error(f"Celery health check failed: {e}")
+        dependencies["celery_broker"] = "error"
+        dependencies["celery_workers"] = "error"
+        dependencies["worker_count"] = 0
     
-    if any(status == "error" for status in dependencies.values()):
-        raise HTTPException(status_code=503, detail={"status": "error", "dependencies": dependencies})
+    # Determine overall status
+    has_errors = any(status == "error" for status in dependencies.values())
+    has_warnings = any(status == "warning" for status in dependencies.values())
     
-    return {"status": "ok", "dependencies": dependencies}
+    if has_errors:
+        raise HTTPException(
+            status_code=503, 
+            detail={"status": "error", "dependencies": dependencies}
+        )
+    elif has_warnings:
+        return {"status": "warning", "dependencies": dependencies}
+    else:
+        return {"status": "ok", "dependencies": dependencies}

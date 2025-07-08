@@ -44,7 +44,7 @@ async def _send_callback_notification(
         logger.info(f"Sending callback notification for job {request_id} to {callback_url}")
         
         # Prepare callback payload
-        payload = {
+        payload: Dict[str, Any] = {
             "request_id": request_id,
             "status": status,
             "timestamp": datetime.now(timezone.utc).isoformat(),
