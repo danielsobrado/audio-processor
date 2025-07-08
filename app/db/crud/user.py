@@ -27,6 +27,19 @@ class CRUDUser(CRUDBase):
         await db.refresh(db_obj)
         return db_obj
 
+    async def create_from_token(self, db: AsyncSession, *, token_data) -> User:
+        """Create a new user from JWT token data (JIT Provisioning)."""
+        db_obj = User(
+            email=token_data.email,
+            full_name=token_data.username,
+            is_active=True,
+            # hashed_password is nullable, so we don't set it for JIT provisioned users
+        )
+        db.add(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
+        return db_obj
+
     async def update(
         self,
         db: AsyncSession,
@@ -37,7 +50,7 @@ class CRUDUser(CRUDBase):
         if isinstance(obj_in, dict):
             update_data = obj_in
         else:
-            update_data = obj_in.dict(exclude_unset=True)
+            update_data = obj_in.model_dump(exclude_unset=True)
 
         for field, value in update_data.items():
             if hasattr(db_obj, field):
