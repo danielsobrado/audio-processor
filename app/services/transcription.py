@@ -10,7 +10,7 @@ from fastapi import UploadFile
 
 from app.core.job_queue import JobQueue
 from app.schemas.database import JobStatus
-from app.schemas.requests import TranscriptionRequest
+from app.schemas.api import TranscriptionRequest
 from app.workers.tasks import process_audio_async
 
 logger = logging.getLogger(__name__)

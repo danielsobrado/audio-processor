@@ -10,7 +10,7 @@ from typing import cast, Optional
 from datetime import datetime
 from fastapi import status
 
-from app.api.dependencies import get_current_user_id
+from app.api.dependencies import get_current_user_id, get_job_queue
 from app.core.job_queue import JobQueue
 from app.schemas.responses import JobStatusResponse
 
@@ -28,7 +28,7 @@ router = APIRouter()
 async def get_job_status(
     request_id: str,
     user_id: str = Depends(get_current_user_id),
-    job_queue: JobQueue = Depends(),
+    job_queue: JobQueue = Depends(get_job_queue),
 ) -> JobStatusResponse:
     """Get status of transcription job."""
     

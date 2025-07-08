@@ -9,6 +9,9 @@ celery
 deepgram-sdk
 redis
 psycopg2-binary
+asyncpg
 python-multipart
 httpx
 PyJWT
+passlib[bcrypt]
+email-validator

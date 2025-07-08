@@ -12,10 +12,9 @@ from typing import Optional
 import aiofiles
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
-from app.api.dependencies import get_current_user_id, get_settings_dependency
+from app.api.dependencies import get_current_user_id, get_settings_dependency, get_job_queue, get_transcription_service
 from app.core.job_queue import JobQueue
-from app.schemas.requests import TranscriptionRequest
-from app.schemas.responses import TranscriptionResponse
+from app.schemas.api import TranscriptionRequest, TranscriptionResponse
 from app.services.transcription import TranscriptionService
 from app.utils.audio_utils import validate_audio_file
 from app.utils.validators import validate_transcription_params
@@ -61,8 +60,8 @@ async def transcribe_audio(
     
     # Dependencies
     user_id: str = Depends(get_current_user_id),
-    transcription_service: TranscriptionService = Depends(),
-    job_queue: JobQueue = Depends(),
+    transcription_service: TranscriptionService = Depends(get_transcription_service),
+    job_queue: JobQueue = Depends(get_job_queue),
     settings = Depends(get_settings_dependency),
 ) -> TranscriptionResponse:
     """
@@ -136,16 +135,10 @@ async def transcribe_audio(
             audio_url=audio_url,
             language=language,
             model=model,
-            punctuate=punctuate,
-            diarize=diarize,
-            smart_format=smart_format,
-            utterances=utterances,
-            utt_split=utt_split,
-            translate=translate,
-            summarize=summarize,
-            callback_url=callback_url,
-            filename=filename,
-            content_type=content_type,
+            include_diarization=diarize if diarize is not None else False,
+            include_summarization=summarize if summarize is not None else False,
+            include_translation=translate if translate is not None else False,
+            target_language=None,  # Could be mapped from translate parameter if needed
         )
         
         # Create job in queue
@@ -204,7 +197,7 @@ async def transcribe_audio(
 async def cancel_job(
     request_id: str,
     user_id: str = Depends(get_current_user_id),
-    job_queue: JobQueue = Depends(),
+    job_queue: JobQueue = Depends(get_job_queue),
 ) -> None:
     """Cancel a transcription job."""
     
@@ -272,7 +265,7 @@ async def list_user_jobs(
     offset: int = 0,
     status_filter: Optional[str] = None,
     user_id: str = Depends(get_current_user_id),
-    job_queue: JobQueue = Depends(),
+    job_queue: JobQueue = Depends(get_job_queue),
 ):
     """List transcription jobs for the current user."""
     

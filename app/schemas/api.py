@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 
 
 # Request Models
@@ -18,6 +18,20 @@ class TranscriptionRequest(BaseModel):
     include_summarization: bool = Field(False, description="Enable text summarization")
     include_translation: bool = Field(False, description="Enable translation")
     target_language: Optional[str] = Field(None, description="Target language for translation")
+
+
+class UserCreateRequest(BaseModel):
+    """Request model for creating a new user."""
+    email: EmailStr
+    password: str = Field(..., min_length=8)
+    full_name: Optional[str] = None
+
+
+class UserUpdateRequest(BaseModel):
+    """Request model for updating a user's profile."""
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+    is_active: Optional[bool] = None
 
 
 # Response Models
@@ -116,3 +130,79 @@ class HealthResponse(BaseModel):
     timestamp: datetime
     services: Dict[str, str]
     version: str
+
+
+# New User Management Models
+class UserResponse(BaseModel):
+    """Response model for user information."""
+    id: int
+    email: EmailStr
+    full_name: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# Enhanced Graph Models
+class SpeakerProfileResponse(BaseModel):
+    """Response model for a detailed speaker profile."""
+    speaker_id: str
+    name: str
+    voice_characteristics: Dict[str, Any]
+    conversation_count: int
+    total_speaking_time: float
+    avg_speaking_time: float
+    total_turns: int
+    topics_discussed: List[str]
+
+
+class TopSpeakerResponse(BaseModel):
+    """Response model for a top speaker entry."""
+    speaker_id: str
+    speaker_name: str
+    conversation_count: int
+    total_speaking_time: float
+    total_turns: int
+    avg_speaking_time: float
+
+
+class SimilarSpeakerResponse(BaseModel):
+    """Response model for a similar speaker entry."""
+    speaker_id: str
+    speaker_name: str
+    similarity_score: float
+    avg_segment_duration: float
+
+
+class TopicProfileResponse(BaseModel):
+    """Response model for a detailed topic profile."""
+    topic_id: str
+    name: str
+    keywords: List[str]
+    confidence_score: float
+    speaker_count: int
+    conversation_count: int
+    total_mentions: int
+    avg_relevance: float
+    discussing_speakers: List[str]
+
+
+class TrendingTopicResponse(BaseModel):
+    """Response model for a trending topic."""
+    topic_id: str
+    topic_name: str
+    keywords: List[str]
+    unique_speakers: int
+    total_mentions: int
+    avg_relevance: float
+
+
+class TopicCooccurrenceResponse(BaseModel):
+    """Response model for topic co-occurrence."""
+    cooccurring_topic_id: str
+    cooccurring_topic_name: str
+    cooccurrence_count: int
+    avg_time_distance: float
