@@ -11,3 +11,4 @@ redis
 psycopg2-binary
 python-multipart
 httpx
+PyJWT

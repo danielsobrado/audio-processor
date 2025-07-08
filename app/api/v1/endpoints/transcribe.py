@@ -12,7 +12,7 @@ from typing import Optional
 import aiofiles
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
-from app.api.dependencies import get_current_user_id
+from app.api.dependencies import get_current_user_id, get_settings_dependency
 from app.core.job_queue import JobQueue
 from app.schemas.requests import TranscriptionRequest
 from app.schemas.responses import TranscriptionResponse
@@ -63,6 +63,7 @@ async def transcribe_audio(
     user_id: str = Depends(get_current_user_id),
     transcription_service: TranscriptionService = Depends(),
     job_queue: JobQueue = Depends(),
+    settings = Depends(get_settings_dependency),
 ) -> TranscriptionResponse:
     """
     Submit audio for transcription processing.
@@ -80,6 +81,13 @@ async def transcribe_audio(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Provide either audio file or URL, not both"
+        )
+    
+    # Check if URL processing is enabled when audio_url is provided
+    if audio_url and not settings.enable_url_processing:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Processing from a URL is disabled"
         )
     
     # Validate parameters
