@@ -8,7 +8,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 
-from app.api.dependencies import get_current_user_id
+from app.api.dependencies import get_current_user_id, get_job_queue
 from app.core.job_queue import JobQueue
 from app.schemas.database import JobStatus
 
@@ -25,7 +25,7 @@ router = APIRouter()
 async def get_transcription_results(
     request_id: str,
     user_id: str = Depends(get_current_user_id),
-    job_queue: JobQueue = Depends(),
+    job_queue: JobQueue = Depends(get_job_queue),
 ) -> JSONResponse:
     """
     Get transcription results in Deepgram-compatible format.
@@ -57,16 +57,17 @@ async def get_transcription_results(
         )
     
     # Check job status
-    if job.status == JobStatus.FAILED:
+    current_status = getattr(job, 'status', None)
+    if current_status == JobStatus.FAILED:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Job failed: {job.error or 'Unknown error'}",
+            detail=f"Job failed: {getattr(job, 'error', None) or 'Unknown error'}",
         )
     
-    if job.status != JobStatus.COMPLETED:
+    if current_status != JobStatus.COMPLETED:
         raise HTTPException(
             status_code=status.HTTP_202_ACCEPTED,
-            detail=f"Job not completed. Current status: {job.status.value}",
+            detail=f"Job not completed. Current status: {current_status}",
         )
     
     # Get results

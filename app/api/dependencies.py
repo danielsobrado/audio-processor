@@ -20,6 +20,7 @@ from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidTokenError
 from app.config.settings import get_settings
 from app.services.cache import CacheService
 from app.core.job_queue import JobQueue
+from app.services.transcription import TranscriptionService
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -44,6 +45,13 @@ def get_job_queue() -> JobQueue:
     Dependency to get a JobQueue instance.
     """
     return JobQueue()
+
+def get_transcription_service() -> TranscriptionService:
+    """
+    Dependency to get a TranscriptionService instance.
+    """
+    job_queue = get_job_queue()
+    return TranscriptionService(job_queue)
 
 # Cache for JWKS keys
 _jwks_cache: Dict[str, Any] = {}

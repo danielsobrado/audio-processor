@@ -372,3 +372,130 @@ class TestGraphEndpointPerformance:
             
             # Verify pagination parameters were passed
             mock_graph_service.get_all_speakers.assert_called_once_with(limit=1, offset=0)
+
+
+# New tests for speaker and topic endpoints
+class TestSpeakerEndpoints:
+    """Test cases for speaker-specific graph endpoints."""
+
+    @pytest.mark.parametrize("endpoint,service_path,method_name,mock_return", [
+        ("/api/v1/graph/speakers/top", "app.api.v1.endpoints.graph.get_speaker_graph_service", "get_top_speakers", [{"speaker_id": "spk1", "speaker_name": "Speaker 1", "conversation_count": 5}]),
+        ("/api/v1/graph/speakers/spk1/profile", "app.api.v1.endpoints.graph.get_speaker_graph_service", "get_speaker_profile", {"speaker_id": "spk1", "name": "Speaker 1", "topics_discussed": ["topic1"]}),
+        ("/api/v1/graph/speakers/spk1/similar", "app.api.v1.endpoints.graph.get_speaker_graph_service", "find_similar_speakers", [{"speaker_id": "spk2", "similarity_score": 0.8}]),
+    ])
+    def test_speaker_endpoints_success(self, client, endpoint, service_path, method_name, mock_return):
+        """Test successful calls to speaker endpoints."""
+        mock_service = AsyncMock()
+        mock_service.settings.graph.enabled = True
+        getattr(mock_service, method_name).return_value = mock_return
+
+        with patch(service_path, return_value=mock_service):
+            response = client.get(endpoint)
+            assert response.status_code == 200
+            assert response.json() == mock_return
+            getattr(mock_service, method_name).assert_called_once()
+
+    def test_speaker_profile_not_found(self, client):
+        """Test 404 Not Found for speaker profile."""
+        mock_service = AsyncMock()
+        mock_service.settings.graph.enabled = True
+        mock_service.get_speaker_profile.return_value = None
+
+        with patch("app.api.v1.endpoints.graph.get_speaker_graph_service", return_value=mock_service):
+            response = client.get("/api/v1/graph/speakers/not-found/profile")
+            assert response.status_code == 404
+
+    def test_get_top_speakers_with_parameters(self, client):
+        """Test top speakers endpoint with query parameters."""
+        mock_service = AsyncMock()
+        mock_service.settings.graph.enabled = True
+        mock_service.get_top_speakers.return_value = [{"speaker_id": "spk1"}]
+
+        with patch("app.api.v1.endpoints.graph.get_speaker_graph_service", return_value=mock_service):
+            response = client.get("/api/v1/graph/speakers/top?limit=5&metric=conversations")
+            assert response.status_code == 200
+            mock_service.get_top_speakers.assert_called_once_with(limit=5, metric="conversations")
+
+    def test_find_similar_speakers_with_threshold(self, client):
+        """Test similar speakers endpoint with threshold parameter."""
+        mock_service = AsyncMock()
+        mock_service.settings.graph.enabled = True
+        mock_service.find_similar_speakers.return_value = []
+
+        with patch("app.api.v1.endpoints.graph.get_speaker_graph_service", return_value=mock_service):
+            response = client.get("/api/v1/graph/speakers/spk1/similar?threshold=0.8")
+            assert response.status_code == 200
+            mock_service.find_similar_speakers.assert_called_once_with("spk1", similarity_threshold=0.8)
+
+
+class TestTopicEndpoints:
+    """Test cases for topic-specific graph endpoints."""
+
+    @pytest.mark.parametrize("endpoint,service_path,method_name,mock_return", [
+        ("/api/v1/graph/topics/trending", "app.api.v1.endpoints.graph.get_topic_graph_service", "get_trending_topics", [{"topic_id": "topic1", "topic_name": "Test Topic"}]),
+        ("/api/v1/graph/topics/topic1/profile", "app.api.v1.endpoints.graph.get_topic_graph_service", "get_topic_profile", {"topic_id": "topic1", "name": "Test Topic", "discussing_speakers": ["spk1"]}),
+        ("/api/v1/graph/topics/topic1/co-occurrence", "app.api.v1.endpoints.graph.get_topic_graph_service", "get_topic_cooccurrence", [{"cooccurring_topic_id": "topic2", "cooccurrence_count": 3}]),
+    ])
+    def test_topic_endpoints_success(self, client, endpoint, service_path, method_name, mock_return):
+        """Test successful calls to topic endpoints."""
+        mock_service = AsyncMock()
+        mock_service.settings.graph.enabled = True
+        getattr(mock_service, method_name).return_value = mock_return
+
+        with patch(service_path, return_value=mock_service):
+            response = client.get(endpoint)
+            assert response.status_code == 200
+            assert response.json() == mock_return
+            getattr(mock_service, method_name).assert_called_once()
+
+    def test_topic_profile_not_found(self, client):
+        """Test 404 Not Found for topic profile."""
+        mock_service = AsyncMock()
+        mock_service.settings.graph.enabled = True
+        mock_service.get_topic_profile.return_value = None
+
+        with patch("app.api.v1.endpoints.graph.get_topic_graph_service", return_value=mock_service):
+            response = client.get("/api/v1/graph/topics/not-found/profile")
+            assert response.status_code == 404
+
+    def test_get_trending_topics_with_time_window(self, client):
+        """Test trending topics endpoint with time window parameter."""
+        mock_service = AsyncMock()
+        mock_service.settings.graph.enabled = True
+        mock_service.get_trending_topics.return_value = []
+
+        with patch("app.api.v1.endpoints.graph.get_topic_graph_service", return_value=mock_service):
+            response = client.get("/api/v1/graph/topics/trending?limit=15&time_window_hours=48")
+            assert response.status_code == 200
+            mock_service.get_trending_topics.assert_called_once_with(limit=15, time_window_hours=48)
+
+    def test_get_topic_cooccurrence_with_limit(self, client):
+        """Test topic co-occurrence endpoint with limit parameter."""
+        mock_service = AsyncMock()
+        mock_service.settings.graph.enabled = True
+        mock_service.get_topic_cooccurrence.return_value = []
+
+        with patch("app.api.v1.endpoints.graph.get_topic_graph_service", return_value=mock_service):
+            response = client.get("/api/v1/graph/topics/topic1/co-occurrence?limit=50")
+            assert response.status_code == 200
+            mock_service.get_topic_cooccurrence.assert_called_once_with("topic1", limit=50)
+
+
+class TestGraphEndpointsServiceDisabled:
+    """Test graph endpoints when service is disabled."""
+
+    @pytest.mark.parametrize("endpoint,service_path", [
+        ("/api/v1/graph/speakers/top", "app.api.v1.endpoints.graph.get_speaker_graph_service"),
+        ("/api/v1/graph/topics/trending", "app.api.v1.endpoints.graph.get_topic_graph_service"),
+        ("/api/v1/graph/speakers/spk1/profile", "app.api.v1.endpoints.graph.get_speaker_graph_service"),
+        ("/api/v1/graph/topics/topic1/profile", "app.api.v1.endpoints.graph.get_topic_graph_service"),
+    ])
+    def test_graph_endpoints_service_disabled(self, client, endpoint, service_path):
+        """Test service unavailable when graph processing is disabled."""
+        mock_service = AsyncMock()
+        mock_service.settings.graph.enabled = False
+
+        with patch(service_path, return_value=mock_service):
+            response = client.get(endpoint)
+            assert response.status_code == 503
+            assert "Graph processing is disabled" in response.json()["detail"]

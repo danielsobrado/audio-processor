@@ -11,11 +11,74 @@ import httpx
 from app.core.deepgram_formatter import DeepgramFormatter
 from app.core.job_queue import JobQueue
 from app.schemas.database import JobStatus
-from typing import Optional
+from typing import Optional, Dict, Any
+from datetime import datetime, timezone
 from app.services.summarization import SummarizationService
 from app.workers.celery_app import celery_app, audio_processor_instance
 
 logger = logging.getLogger(__name__)
+
+
+
+async def _send_callback_notification(
+    callback_url: str,
+    request_id: str,
+    status: str,
+    result: Optional[Dict[str, Any]] = None,
+    error: Optional[str] = None,
+) -> None:
+    """
+    Send HTTP POST notification to callback URL.
+    
+    Args:
+        callback_url: The URL to send the callback to.
+        request_id: The job request ID.
+        status: The final job status ('completed' or 'failed').
+        result: The transcription result data (if successful).
+        error: The error message (if failed).
+    """
+    if not callback_url:
+        return
+    
+    try:
+        logger.info(f"Sending callback notification for job {request_id} to {callback_url}")
+        
+        # Prepare callback payload
+        payload = {
+            "request_id": request_id,
+            "status": status,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        
+        if status == "completed" and result:
+            payload["result"] = result
+        elif status == "failed" and error:
+            payload["error"] = error
+        
+        # Send HTTP POST with timeout and retry logic
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                callback_url,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+                follow_redirects=True,
+            )
+            
+            # Log response for debugging
+            if response.is_success:
+                logger.info(f"Callback notification sent successfully for job {request_id}: {response.status_code}")
+            else:
+                logger.warning(
+                    f"Callback notification failed for job {request_id}: "
+                    f"HTTP {response.status_code} - {response.text[:200]}"
+                )
+                
+    except httpx.TimeoutException:
+        logger.error(f"Callback notification timed out for job {request_id} to {callback_url}")
+    except httpx.RequestError as e:
+        logger.error(f"Callback notification request failed for job {request_id}: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error sending callback for job {request_id}: {e}", exc_info=True)
 
 
 @celery_app.task(bind=True, name="audio_processor.workers.tasks.process_audio")
@@ -163,6 +226,16 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
             
             logger.info(f"Audio processing for job {request_id} completed successfully")
             
+            # Send callback notification if URL provided
+            callback_url = request_data.get("callback_url")
+            if callback_url:
+                await _send_callback_notification(
+                    callback_url=callback_url,
+                    request_id=request_id,
+                    status="completed",
+                    result=deepgram_result,
+                )
+            
             # Cleanup temporary file for both file uploads and URL downloads
             if (audio_data or request_data.get("audio_url")) and audio_path.exists():
                 audio_path.unlink()
@@ -173,6 +246,16 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
             logger.error(f"Audio processing for job {request_id} failed: {e}", exc_info=True)
             if request_id:
                 await job_queue.update_job(request_id, status=JobStatus.FAILED, error=str(e))
+                
+                # Send callback notification if URL provided
+                callback_url = request_data.get("callback_url")
+                if callback_url:
+                    await _send_callback_notification(
+                        callback_url=callback_url,
+                        request_id=request_id,
+                        status="failed",
+                        error=str(e),
+                    )
             
             # Cleanup temporary file in case of failure for both uploads and URL downloads
             if 'audio_path' in locals() and audio_path.exists():

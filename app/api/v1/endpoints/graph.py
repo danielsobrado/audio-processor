@@ -2,7 +2,7 @@
 
 import logging
 from typing import Optional, Dict, Any, List
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, status
 from pydantic import BaseModel
 
 from app.services.conversation_graph import get_conversation_graph_service, ConversationGraphService
@@ -10,6 +10,14 @@ from app.services.speaker_graph import get_speaker_graph_service, SpeakerGraphSe
 from app.services.topic_graph import get_topic_graph_service, TopicGraphService
 from app.schemas.graph import NodeType, RelationshipType
 from app.services.graph_service import get_graph_service, GraphService
+from app.schemas.api import (
+    SpeakerProfileResponse,
+    TopSpeakerResponse,
+    SimilarSpeakerResponse,
+    TopicProfileResponse,
+    TrendingTopicResponse,
+    TopicCooccurrenceResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -257,3 +265,113 @@ async def find_shortest_path(
             status_code=500,
             detail=f"Failed to find shortest path: {str(e)}"
         )
+
+
+# New Speaker Endpoints
+@router.get(
+    "/speakers/top",
+    response_model=List[TopSpeakerResponse],
+    summary="Get Top Speakers",
+    description="Get a list of top speakers based on a specified metric.",
+)
+async def get_top_speakers(
+    limit: int = Query(10, ge=1, le=100),
+    metric: str = Query("speaking_time", enum=["speaking_time", "conversations", "turns"]),
+    service: SpeakerGraphService = Depends(get_speaker_graph_service),
+):
+    """Get top speakers based on speaking time, conversation count, or turn count."""
+    if not service.settings.graph.enabled:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Graph processing is disabled")
+    return await service.get_top_speakers(limit=limit, metric=metric)
+
+
+@router.get(
+    "/speakers/{speaker_id}/profile",
+    response_model=SpeakerProfileResponse,
+    summary="Get Speaker Profile",
+    description="Get a comprehensive profile for a specific speaker.",
+)
+async def get_speaker_profile(
+    speaker_id: str,
+    service: SpeakerGraphService = Depends(get_speaker_graph_service),
+):
+    """Get a detailed profile for a speaker, including statistics and topics discussed."""
+    if not service.settings.graph.enabled:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Graph processing is disabled")
+    
+    profile = await service.get_speaker_profile(speaker_id)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Speaker profile for '{speaker_id}' not found")
+    return profile
+
+
+@router.get(
+    "/speakers/{speaker_id}/similar",
+    response_model=List[SimilarSpeakerResponse],
+    summary="Find Similar Speakers",
+    description="Find speakers with similar communication patterns.",
+)
+async def find_similar_speakers(
+    speaker_id: str,
+    threshold: float = Query(0.7, ge=0.1, le=1.0),
+    service: SpeakerGraphService = Depends(get_speaker_graph_service),
+):
+    """Find speakers with similar communication styles based on speaking patterns."""
+    if not service.settings.graph.enabled:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Graph processing is disabled")
+    return await service.find_similar_speakers(speaker_id, similarity_threshold=threshold)
+
+
+# New Topic Endpoints
+@router.get(
+    "/topics/trending",
+    response_model=List[TrendingTopicResponse],
+    summary="Get Trending Topics",
+    description="Get a list of trending topics based on recent activity.",
+)
+async def get_trending_topics(
+    limit: int = Query(10, ge=1, le=100),
+    time_window_hours: int = Query(24, ge=1),
+    service: TopicGraphService = Depends(get_topic_graph_service),
+):
+    """Get trending topics based on mentions and speaker engagement within a time window."""
+    if not service.settings.graph.enabled:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Graph processing is disabled")
+    return await service.get_trending_topics(limit=limit, time_window_hours=time_window_hours)
+
+
+@router.get(
+    "/topics/{topic_id}/profile",
+    response_model=TopicProfileResponse,
+    summary="Get Topic Profile",
+    description="Get a comprehensive profile for a specific topic.",
+)
+async def get_topic_profile(
+    topic_id: str,
+    service: TopicGraphService = Depends(get_topic_graph_service),
+):
+    """Get a detailed profile for a topic, including statistics and related speakers."""
+    if not service.settings.graph.enabled:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Graph processing is disabled")
+    
+    profile = await service.get_topic_profile(topic_id)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Topic profile for '{topic_id}' not found")
+    return profile
+
+
+@router.get(
+    "/topics/{topic_id}/co-occurrence",
+    response_model=List[TopicCooccurrenceResponse],
+    summary="Get Topic Co-occurrence",
+    description="Find topics that frequently occur with the specified topic.",
+)
+async def get_topic_cooccurrence(
+    topic_id: str,
+    limit: int = Query(20, ge=1, le=100),
+    service: TopicGraphService = Depends(get_topic_graph_service),
+):
+    """Get topics that frequently appear in the same context as the given topic."""
+    if not service.settings.graph.enabled:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Graph processing is disabled")
+    return await service.get_topic_cooccurrence(topic_id, limit=limit)
