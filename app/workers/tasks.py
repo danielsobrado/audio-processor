@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _send_callback_notification(
-    callback_url: str,
+    callback_url: Optional[str],
     request_id: str,
     status: str,
     result: Optional[Dict[str, Any]] = None,

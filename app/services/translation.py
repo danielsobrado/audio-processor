@@ -25,7 +25,11 @@ class TranslationService:
         self.settings = get_settings()
         if self.settings.translation.enabled:
             self.model_name = self.settings.translation.model_name
-            self.device = 0 if self.settings.translation.device == "cuda" and torch.cuda.is_available() else -1
+            # Only check for CUDA if torch is available
+            if TORCH_AVAILABLE and torch is not None and self.settings.translation.device == "cuda" and torch.cuda.is_available():
+                self.device = 0
+            else:
+                self.device = -1
             logger.info(f"TranslationService initialized with model '{self.model_name}' on device '{self.settings.translation.device}'")
         else:
             logger.info("TranslationService is disabled by configuration.")
@@ -35,8 +39,12 @@ class TranslationService:
         if not self.settings.translation.enabled or self.pipeline is not None:
             return
 
+        if not TORCH_AVAILABLE:
+            logger.error("torch is not available. Translation functionality requires torch and transformers.")
+            return
+
         try:
-            from transformers import pipeline
+            from transformers.pipelines import pipeline
             logger.info(f"Loading translation model: {self.model_name}...")
             self.pipeline = pipeline(
                 "translation",

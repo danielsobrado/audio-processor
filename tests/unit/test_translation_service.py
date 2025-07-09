@@ -56,23 +56,19 @@ class TestTranslationService:
         mock_get_settings.return_value = mock_settings
         mock_torch.cuda.is_available.return_value = False
         
-        # Mock the transformers pipeline import inside the function
-        mock_pipeline = Mock()
-        with patch('builtins.__import__') as mock_import:
-            def import_side_effect(name, *args):
-                if name == 'transformers':
-                    mock_transformers = Mock()
-                    mock_transformers.pipeline = Mock(return_value=mock_pipeline)
-                    return mock_transformers
-                # For other imports, use the real import
-                return __import__(name, *args)
-            
-            mock_import.side_effect = import_side_effect
-            
+        # Mock the transformers pipeline import more directly
+        mock_pipeline_instance = Mock()
+        
+        with patch('transformers.pipelines.pipeline', return_value=mock_pipeline_instance) as mock_pipeline:
             service = TranslationService()
             await service.initialize_model()
             
-            assert service.pipeline == mock_pipeline
+            assert service.pipeline == mock_pipeline_instance
+            mock_pipeline.assert_called_once_with(
+                "translation",
+                model="Helsinki-NLP/opus-mt-en-es",
+                device=-1
+            )
 
     @patch('app.services.translation.get_settings')
     @pytest.mark.asyncio
@@ -91,15 +87,7 @@ class TestTranslationService:
         """Test model initialization with import error."""
         mock_get_settings.return_value = mock_settings
         
-        with patch('builtins.__import__') as mock_import:
-            def import_side_effect(name, *args):
-                if name == 'transformers':
-                    raise ImportError("transformers not found")
-                # For other imports, use the real import
-                return __import__(name, *args)
-            
-            mock_import.side_effect = import_side_effect
-            
+        with patch('transformers.pipelines.pipeline', side_effect=ImportError("transformers not found")):
             service = TranslationService()
             await service.initialize_model()
             
