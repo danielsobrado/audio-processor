@@ -2,8 +2,10 @@
 Unit tests for the DeepgramFormatter.
 """
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
+
 from app.core.deepgram_formatter import DeepgramFormatter
 
 
@@ -17,9 +19,9 @@ def test_format_transcription_result_empty(formatter):
     """Test formatting an empty WhisperX result."""
     whisperx_result = {"segments": [], "language": "en"}
     request_id = "test-123"
-    
+
     result = formatter.format_transcription_result(whisperx_result, request_id)
-    
+
     assert "metadata" in result
     assert "results" in result
     assert result["metadata"]["request_id"] == request_id
@@ -32,18 +34,29 @@ def test_format_transcription_result_basic(formatter):
     """Test formatting a basic WhisperX result."""
     whisperx_result = {
         "segments": [
-            {"text": "Hello world.", "start": 0.0, "end": 1.5, "words": [{"word": "Hello", "start": 0.0, "end": 0.5, "score": 0.9}, {"word": "world.", "start": 0.5, "end": 1.5, "score": 0.9}]},
+            {
+                "text": "Hello world.",
+                "start": 0.0,
+                "end": 1.5,
+                "words": [
+                    {"word": "Hello", "start": 0.0, "end": 0.5, "score": 0.9},
+                    {"word": "world.", "start": 0.5, "end": 1.5, "score": 0.9},
+                ],
+            },
         ],
         "language": "en",
         "duration": 1.5,
     }
     request_id = "test-456"
-    
+
     result = formatter.format_transcription_result(whisperx_result, request_id)
-    
+
     assert result["metadata"]["request_id"] == request_id
     assert result["metadata"]["duration"] == 1.5
-    assert result["results"]["channels"][0]["alternatives"][0]["transcript"] == "Hello world."
+    assert (
+        result["results"]["channels"][0]["alternatives"][0]["transcript"]
+        == "Hello world."
+    )
     assert len(result["results"]["channels"][0]["alternatives"][0]["words"]) == 2
 
 
@@ -54,9 +67,9 @@ def test_add_summary_data(formatter):
         "results": {"channels": [{"alternatives": [{"transcript": "Original text."}]}]},
     }
     summary = "This is a summary."
-    
+
     result = formatter.add_summary_data(deepgram_response, summary)
-    
+
     assert "summary" in result["metadata"]
     assert result["metadata"]["summary"]["text"] == summary
     assert "summary" in result["results"]

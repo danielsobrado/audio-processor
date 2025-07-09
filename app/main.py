@@ -5,10 +5,10 @@ Compatible with Omi backend architecture using PostgreSQL, Keycloak OAuth, and K
 
 import logging
 import sys
+import time
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-import time
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,7 +26,6 @@ from app.utils.error_handlers import (
     validation_exception_handler,
 )
 
-
 # Initialize settings
 settings = get_settings()
 
@@ -40,7 +39,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan events."""
     # Startup
     logger.info("Starting Audio Processing Microservice")
-    
+
     # Initialize database connection
     try:
         db = get_database()
@@ -49,7 +48,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
         sys.exit(1)
-    
+
     # Initialize job queue
     try:
         job_queue = JobQueue()
@@ -59,11 +58,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as e:
         logger.error(f"Job queue initialization failed: {e}")
         sys.exit(1)
-    
+
     # Initialize graph database connection
     try:
         from app.db.graph_session import graph_db_manager
-        
+
         if settings.graph.enabled:
             await graph_db_manager.initialize()
             logger.info("Graph database connection established")
@@ -72,10 +71,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as e:
         logger.warning(f"Graph database initialization failed: {e}")
         # Don't exit if graph database fails, just log the warning
-    
+
     # Download required models
     try:
         from app.core.audio_processor import AudioProcessor
+
         processor = AudioProcessor()
         await processor.initialize_models()
         app.state.audio_processor = processor
@@ -83,39 +83,40 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as e:
         logger.error(f"Model initialization failed: {e}")
         sys.exit(1)
-    
+
     logger.info("Application startup complete")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down Audio Processing Microservice")
-    
+
     # Cleanup resources
-    if hasattr(app.state, 'audio_processor'):
+    if hasattr(app.state, "audio_processor"):
         await app.state.audio_processor.cleanup()
-    
-    if hasattr(app.state, 'job_queue'):
+
+    if hasattr(app.state, "job_queue"):
         await app.state.job_queue.cleanup()
-    
+
     # Close graph database connection
     try:
         from app.db.graph_session import graph_db_manager
+
         await graph_db_manager.shutdown()
         logger.info("Graph database connection closed")
     except Exception as e:
         logger.warning(f"Graph database shutdown failed: {e}")
-    
+
     # Close database connections
     if db:
         await db.close_async()
-    
+
     logger.info("Application shutdown complete")
 
 
 def create_application() -> FastAPI:
     """Create and configure FastAPI application."""
-    
+
     app = FastAPI(
         title="Audio Processing Microservice",
         description="Deepgram-compatible audio processing with WhisperX, diarization, and translation",
@@ -125,29 +126,29 @@ def create_application() -> FastAPI:
         openapi_url="/openapi.json" if settings.environment != "production" else None,
         lifespan=lifespan,
     )
-    
+
     # Add middleware
     setup_middleware(app)
-    
+
     # Add exception handlers
     setup_exception_handlers(app)
-    
+
     # Include routers
     app.include_router(api_router, prefix="/api")
-    
+
     return app
 
 
 def setup_middleware(app: FastAPI) -> None:
     """Configure application middleware."""
-    
+
     # Trusted hosts
     if settings.allowed_hosts:
         app.add_middleware(
             TrustedHostMiddleware,
             allowed_hosts=settings.allowed_hosts,
         )
-    
+
     # CORS
     app.add_middleware(
         CORSMiddleware,
@@ -156,12 +157,12 @@ def setup_middleware(app: FastAPI) -> None:
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
-    
+
     # Request logging middleware
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
         start_time = time.time()
-        
+
         # Log request
         logger.info(
             "Request started",
@@ -170,11 +171,11 @@ def setup_middleware(app: FastAPI) -> None:
                 "url": str(request.url),
                 "client_ip": request.client.host if request.client else None,
                 "user_agent": request.headers.get("user-agent"),
-            }
+            },
         )
-        
+
         response = await call_next(request)
-        
+
         # Log response
         process_time = time.time() - start_time
         logger.info(
@@ -184,25 +185,28 @@ def setup_middleware(app: FastAPI) -> None:
                 "url": str(request.url),
                 "status_code": response.status_code,
                 "process_time": f"{process_time:.3f}s",
-            }
+            },
         )
-        
+
         return response
 
 
 def setup_exception_handlers(app: FastAPI) -> None:
     """Configure global exception handlers."""
-    
+
     from fastapi import HTTPException
     from pydantic import ValidationError
+
     from app.utils.error_handlers import AudioProcessingError
-    
+
     app.add_exception_handler(HTTPException, http_exception_handler)  # type: ignore
     app.add_exception_handler(ValidationError, validation_exception_handler)  # type: ignore
     app.add_exception_handler(AudioProcessingError, audio_processing_exception_handler)  # type: ignore
-    
+
     @app.exception_handler(Exception)
-    async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    async def global_exception_handler(
+        request: Request, exc: Exception
+    ) -> JSONResponse:
         """Handle unexpected exceptions."""
         logger.error(
             "Unhandled exception",
@@ -213,13 +217,13 @@ def setup_exception_handlers(app: FastAPI) -> None:
             },
             exc_info=True,
         )
-        
+
         return JSONResponse(
             status_code=500,
             content={
                 "error": "Internal server error",
                 "detail": "An unexpected error occurred",
-            }
+            },
         )
 
 
@@ -239,7 +243,7 @@ async def root() -> dict:
 
 if __name__ == "__main__":
     import time
-    
+
     uvicorn.run(
         "app.main:app",
         host=settings.host or "0.0.0.0",

@@ -36,11 +36,7 @@ class CRUDBase:
         return db_obj
 
     async def update(
-        self,
-        db: AsyncSession,
-        *,
-        db_obj,
-        obj_in: Union[BaseModel, Dict[str, Any]]
+        self, db: AsyncSession, *, db_obj, obj_in: Union[BaseModel, Dict[str, Any]]
     ):
         obj_data = jsonable_encoder(db_obj)
         if isinstance(obj_in, dict):

@@ -1,9 +1,9 @@
 from contextlib import asynccontextmanager, contextmanager
-from typing import Generator, AsyncGenerator
+from typing import AsyncGenerator, Generator
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.config.settings import get_settings
 
@@ -12,19 +12,23 @@ engine = create_engine(get_settings().database.url)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Async database setup for hybrid compatibility
-async_engine = create_async_engine(get_settings().database.url.replace("postgresql://", "postgresql+asyncpg://"))
-AsyncSessionLocal = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+async_engine = create_async_engine(
+    get_settings().database.url.replace("postgresql://", "postgresql+asyncpg://")
+)
+AsyncSessionLocal = async_sessionmaker(
+    async_engine, class_=AsyncSession, expire_on_commit=False
+)
 
 
 class DatabaseService:
     """Database service providing session management and lifecycle."""
-    
+
     def __init__(self):
         self.engine = engine
         self.async_engine = async_engine
         self.SessionLocal = SessionLocal
         self.AsyncSessionLocal = AsyncSessionLocal
-    
+
     @contextmanager
     def get_session(self) -> Generator[Session, None, None]:
         """Get synchronous database session with proper cleanup."""
@@ -37,7 +41,7 @@ class DatabaseService:
             raise
         finally:
             session.close()
-    
+
     @asynccontextmanager
     async def get_async_session(self) -> AsyncGenerator[AsyncSession, None]:
         """Get asynchronous database session with proper cleanup."""
@@ -50,22 +54,24 @@ class DatabaseService:
             raise
         finally:
             await session.close()
-    
+
     def create_tables(self):
         """Create database tables."""
         from app.db.base import Base
+
         Base.metadata.create_all(bind=self.engine)
-    
+
     async def create_tables_async(self):
         """Create database tables asynchronously."""
         from app.db.base import Base
+
         async with self.async_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-    
+
     def close(self):
         """Close database connections."""
         self.engine.dispose()
-        
+
     async def close_async(self):
         """Close async database connections."""
         await self.async_engine.dispose()

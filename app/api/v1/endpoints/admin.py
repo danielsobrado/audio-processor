@@ -3,21 +3,21 @@ Admin endpoints for job management and system operations.
 """
 
 import logging
-from typing import List, Optional, cast
 from datetime import datetime, timezone
+from typing import List, Optional, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_async_session, require_roles
 from app.core.job_queue import JobQueue
-from app.schemas.database import JobStatus
 from app.schemas.api import (
-    JobResponse,
     AdminJobListResponse,
     AdminJobRequeueRequest,
     AdminJobRequeueResponse,
+    JobResponse,
 )
+from app.schemas.database import JobStatus
 from app.workers.tasks import process_audio_async
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,9 @@ router = APIRouter()
 )
 async def list_all_jobs(
     status_filter: Optional[str] = Query(None, description="Filter by job status"),
-    limit: int = Query(50, ge=1, le=500, description="Maximum number of jobs to return"),
+    limit: int = Query(
+        50, ge=1, le=500, description="Maximum number of jobs to return"
+    ),
     offset: int = Query(0, ge=0, description="Number of jobs to skip"),
     session: AsyncSession = Depends(get_async_session),
 ) -> AdminJobListResponse:
@@ -41,14 +43,15 @@ async def list_all_jobs(
     Retrieve all jobs in the system with pagination and filtering.
     Admin-only endpoint for system monitoring and support.
     """
-    
+
     try:
-        from sqlalchemy import select, func, desc
+        from sqlalchemy import desc, func, select
+
         from app.schemas.database import TranscriptionJob
-        
+
         # Build base query
         query = select(TranscriptionJob).order_by(desc(TranscriptionJob.created_at))
-        
+
         # Apply status filter if provided
         job_status = None
         if status_filter:
@@ -58,24 +61,24 @@ async def list_all_jobs(
             except ValueError:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid status filter: {status_filter}. Valid values: {[s.value for s in JobStatus]}"
+                    detail=f"Invalid status filter: {status_filter}. Valid values: {[s.value for s in JobStatus]}",
                 )
-        
+
         # Get total count for pagination
         count_query = select(func.count()).select_from(TranscriptionJob)
         if status_filter and job_status is not None:
             count_query = count_query.where(TranscriptionJob.status == job_status)
-        
+
         total_result = await session.execute(count_query)
         total_count = total_result.scalar()
-        
+
         # Apply pagination
         query = query.offset(offset).limit(limit)
-        
+
         # Execute query
         result = await session.execute(query)
         jobs = result.scalars().all()
-        
+
         # Convert to response format
         job_responses = []
         for job in jobs:
@@ -87,7 +90,7 @@ async def list_all_jobs(
             job_updated = cast(datetime, job.updated_at)
             job_transcription = cast(str | None, job.transcription_result)
             job_error = cast(str | None, job.error_message)
-            
+
             job_response = JobResponse(
                 request_id=job_request_id,
                 user_id=job_user_id,
@@ -95,28 +98,30 @@ async def list_all_jobs(
                 progress=0.0,  # Progress not in current schema
                 created=job_created,
                 updated=job_updated,
-                result={"transcription": job_transcription} if job_transcription else None,
+                result=(
+                    {"transcription": job_transcription} if job_transcription else None
+                ),
                 error=job_error,
                 task_id=None,  # Task ID not in current schema
                 job_type="transcription",  # Default job type
                 parameters=None,  # Parameters not in current schema
             )
             job_responses.append(job_response)
-        
+
         logger.info(f"Admin retrieved {len(job_responses)} jobs (total: {total_count})")
-        
+
         return AdminJobListResponse(
             jobs=job_responses,
             total_count=total_count or 0,
             limit=limit,
             offset=offset,
         )
-        
+
     except Exception as e:
         logger.error(f"Failed to retrieve admin job list: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve job list"
+            detail="Failed to retrieve job list",
         )
 
 
@@ -134,38 +139,41 @@ async def requeue_job(
 ) -> AdminJobRequeueResponse:
     """
     Requeue a failed job for retry processing.
-    
+
     This endpoint allows administrators to retry failed jobs, which is useful for:
     - Temporary infrastructure failures
     - Network issues during processing
     - Service outages that affected job processing
-    
+
     The job must be in 'failed' status to be requeued.
     """
-    
+
     try:
         from sqlalchemy import select, update
+
         from app.schemas.database import TranscriptionJob
-        
+
         # Get the job
-        query = select(TranscriptionJob).where(TranscriptionJob.request_id == request_id)
+        query = select(TranscriptionJob).where(
+            TranscriptionJob.request_id == request_id
+        )
         result = await session.execute(query)
         job = result.scalar_one_or_none()
-        
+
         if not job:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Job with request_id {request_id} not found"
+                detail=f"Job with request_id {request_id} not found",
             )
-        
+
         # Check if job can be requeued (cast to help pyright)
         job_status = cast(JobStatus, job.status)
         if job_status != JobStatus.FAILED:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Job status is '{job.status.value}'. Only failed jobs can be requeued."
+                detail=f"Job status is '{job.status.value}'. Only failed jobs can be requeued.",
             )
-        
+
         # Update job status to pending
         update_stmt = (
             update(TranscriptionJob)
@@ -180,17 +188,17 @@ async def requeue_job(
         )
         await session.execute(update_stmt)
         await session.commit()
-        
+
         # Create new Celery task
         task_data = job.parameters.copy() if job.parameters else {}
         task_data["request_id"] = request_id
-        
+
         # Submit new task
         task = process_audio_async.delay(
             request_data=task_data,
             audio_data=None,  # Audio data should be in file path or URL
         )
-        
+
         # Update job with new task ID
         update_task_stmt = (
             update(TranscriptionJob)
@@ -199,19 +207,19 @@ async def requeue_job(
         )
         await session.execute(update_task_stmt)
         await session.commit()
-        
+
         logger.info(
             f"Admin requeued job {request_id} with new task {task.id}. "
             f"Reason: {requeue_request.reason}"
         )
-        
+
         return AdminJobRequeueResponse(
             request_id=request_id,
             new_task_id=task.id,
             status="requeued",
             message=f"Job successfully requeued. New task ID: {task.id}",
         )
-        
+
     except HTTPException:
         # Re-raise HTTP exceptions as-is
         raise
@@ -219,7 +227,7 @@ async def requeue_job(
         logger.error(f"Failed to requeue job {request_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to requeue job"
+            detail="Failed to requeue job",
         )
 
 
@@ -238,21 +246,24 @@ async def get_job_details(
     Get detailed information about a specific job.
     Admin-only endpoint for troubleshooting and support.
     """
-    
+
     try:
         from sqlalchemy import select
+
         from app.schemas.database import TranscriptionJob
-        
-        query = select(TranscriptionJob).where(TranscriptionJob.request_id == request_id)
+
+        query = select(TranscriptionJob).where(
+            TranscriptionJob.request_id == request_id
+        )
         result = await session.execute(query)
         job = result.scalar_one_or_none()
-        
+
         if not job:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Job with request_id {request_id} not found"
+                detail=f"Job with request_id {request_id} not found",
             )
-        
+
         # Cast to help pyright understand these are actual values, not Column objects
         job_request_id = str(cast(str, job.request_id))
         job_user_id = str(cast(int, job.user_id))
@@ -261,7 +272,7 @@ async def get_job_details(
         job_updated = cast(datetime, job.updated_at)
         job_transcription = cast(str | None, job.transcription_result)
         job_error = cast(str | None, job.error_message)
-        
+
         return JobResponse(
             request_id=job_request_id,
             user_id=job_user_id,
@@ -275,14 +286,16 @@ async def get_job_details(
             job_type="transcription",  # Default job type
             parameters=None,  # Parameters not in current schema
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to retrieve job details for {request_id}: {e}", exc_info=True)
+        logger.error(
+            f"Failed to retrieve job details for {request_id}: {e}", exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve job details"
+            detail="Failed to retrieve job details",
         )
 
 
@@ -298,45 +311,50 @@ async def delete_job(
 ):
     """
     Permanently delete a job from the system.
-    
+
     WARNING: This operation cannot be undone. Use with caution.
     Typically used for:
     - Removing test jobs
     - Cleaning up corrupted job records
     - GDPR compliance (data deletion requests)
     """
-    
+
     try:
-        from sqlalchemy import select, delete
+        from sqlalchemy import delete, select
+
         from app.schemas.database import TranscriptionJob
-        
+
         # Check if job exists
-        query = select(TranscriptionJob).where(TranscriptionJob.request_id == request_id)
+        query = select(TranscriptionJob).where(
+            TranscriptionJob.request_id == request_id
+        )
         result = await session.execute(query)
         job = result.scalar_one_or_none()
-        
+
         if not job:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Job with request_id {request_id} not found"
+                detail=f"Job with request_id {request_id} not found",
             )
-        
+
         # Delete the job
-        delete_stmt = delete(TranscriptionJob).where(TranscriptionJob.request_id == request_id)
+        delete_stmt = delete(TranscriptionJob).where(
+            TranscriptionJob.request_id == request_id
+        )
         await session.execute(delete_stmt)
         await session.commit()
-        
+
         logger.warning(f"Admin deleted job {request_id}")
-        
+
         return {"message": f"Job {request_id} successfully deleted"}
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to delete job {request_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete job"
+            detail="Failed to delete job",
         )
 
 
@@ -352,26 +370,27 @@ async def get_system_stats(
     """
     Get comprehensive system statistics for monitoring and reporting.
     """
-    
+
     try:
-        from sqlalchemy import select, func
+        from sqlalchemy import func, select
+
         from app.schemas.database import TranscriptionJob
-        
+
         # Get job counts by status
-        status_query = (
-            select(TranscriptionJob.status, func.count())
-            .group_by(TranscriptionJob.status)
+        status_query = select(TranscriptionJob.status, func.count()).group_by(
+            TranscriptionJob.status
         )
         status_result = await session.execute(status_query)
         status_counts = {status.value: count for status, count in status_result.all()}
-        
+
         # Get total jobs
         total_query = select(func.count()).select_from(TranscriptionJob)
         total_result = await session.execute(total_query)
         total_jobs = total_result.scalar()
-        
+
         # Get recent activity (last 24 hours)
         from datetime import timedelta
+
         yesterday = datetime.now(timezone.utc) - timedelta(days=1)
         recent_query = (
             select(func.count())
@@ -380,17 +399,17 @@ async def get_system_stats(
         )
         recent_result = await session.execute(recent_query)
         recent_jobs = recent_result.scalar()
-        
+
         return {
             "total_jobs": total_jobs,
             "recent_jobs_24h": recent_jobs,
             "status_breakdown": status_counts,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to retrieve system stats: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve system statistics"
+            detail="Failed to retrieve system statistics",
         )

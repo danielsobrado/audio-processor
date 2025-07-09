@@ -1,8 +1,9 @@
 """Integration tests for graph API endpoints."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, patch, MagicMock
 
 from app.main import app
 from app.services.graph import GraphService
@@ -34,13 +35,16 @@ class TestGraphEndpoints:
                 "speakers": 5,
                 "topics": 3,
                 "conversations": 2,
-                "relationships": 12
-            }
+                "relationships": 12,
+            },
         }
-        
-        with patch('app.api.v1.endpoints.graph.get_graph_service', return_value=mock_graph_service):
+
+        with patch(
+            "app.api.v1.endpoints.graph.get_graph_service",
+            return_value=mock_graph_service,
+        ):
             response = client.get("/api/v1/graph/stats")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert data["enabled"] is True
@@ -53,12 +57,15 @@ class TestGraphEndpoints:
         # Mock the graph service response for disabled state
         mock_graph_service.get_graph_stats.return_value = {
             "enabled": False,
-            "stats": {}
+            "stats": {},
         }
-        
-        with patch('app.api.v1.endpoints.graph.get_graph_service', return_value=mock_graph_service):
+
+        with patch(
+            "app.api.v1.endpoints.graph.get_graph_service",
+            return_value=mock_graph_service,
+        ):
             response = client.get("/api/v1/graph/stats")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert data["enabled"] is False
@@ -73,19 +80,22 @@ class TestGraphEndpoints:
                 "speaker_id": "john-doe",
                 "name": "John Doe",
                 "total_speaking_time": 120.5,
-                "segment_count": 5
+                "segment_count": 5,
             },
             {
                 "speaker_id": "jane-smith",
-                "name": "Jane Smith", 
+                "name": "Jane Smith",
                 "total_speaking_time": 95.2,
-                "segment_count": 3
-            }
+                "segment_count": 3,
+            },
         ]
-        
-        with patch('app.api.v1.endpoints.graph.get_graph_service', return_value=mock_graph_service):
+
+        with patch(
+            "app.api.v1.endpoints.graph.get_graph_service",
+            return_value=mock_graph_service,
+        ):
             response = client.get("/api/v1/graph/speakers")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert len(data) == 2
@@ -101,19 +111,22 @@ class TestGraphEndpoints:
                 "topic_id": "greeting",
                 "name": "Greeting",
                 "keyword_count": 3,
-                "conversation_count": 2
+                "conversation_count": 2,
             },
             {
                 "topic_id": "business",
                 "name": "Business Discussion",
                 "keyword_count": 5,
-                "conversation_count": 1
-            }
+                "conversation_count": 1,
+            },
         ]
-        
-        with patch('app.api.v1.endpoints.graph.get_graph_service', return_value=mock_graph_service):
+
+        with patch(
+            "app.api.v1.endpoints.graph.get_graph_service",
+            return_value=mock_graph_service,
+        ):
             response = client.get("/api/v1/graph/topics")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert len(data) == 2
@@ -123,7 +136,7 @@ class TestGraphEndpoints:
     async def test_conversation_graph_endpoint(self, client, mock_graph_service):
         """Test conversation graph endpoint."""
         conversation_id = "conv-123"
-        
+
         # Mock the graph service response
         mock_graph_service.get_conversation_graph.return_value = {
             "conversation_id": conversation_id,
@@ -134,14 +147,17 @@ class TestGraphEndpoints:
                 {
                     "from_speaker": "john-doe",
                     "to_speaker": "jane-smith",
-                    "interaction_count": 3
+                    "interaction_count": 3,
                 }
-            ]
+            ],
         }
-        
-        with patch('app.api.v1.endpoints.graph.get_graph_service', return_value=mock_graph_service):
+
+        with patch(
+            "app.api.v1.endpoints.graph.get_graph_service",
+            return_value=mock_graph_service,
+        ):
             response = client.get(f"/api/v1/graph/conversations/{conversation_id}")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert data["conversation_id"] == conversation_id
@@ -152,13 +168,16 @@ class TestGraphEndpoints:
     async def test_conversation_graph_not_found(self, client, mock_graph_service):
         """Test conversation graph endpoint when conversation not found."""
         conversation_id = "non-existent-conv"
-        
+
         # Mock the graph service to return None
         mock_graph_service.get_conversation_graph.return_value = None
-        
-        with patch('app.api.v1.endpoints.graph.get_graph_service', return_value=mock_graph_service):
+
+        with patch(
+            "app.api.v1.endpoints.graph.get_graph_service",
+            return_value=mock_graph_service,
+        ):
             response = client.get(f"/api/v1/graph/conversations/{conversation_id}")
-            
+
             assert response.status_code == 404
             data = response.json()
             assert "not found" in data["detail"].lower()
@@ -167,7 +186,7 @@ class TestGraphEndpoints:
     async def test_speaker_network_endpoint(self, client, mock_graph_service):
         """Test speaker network endpoint."""
         speaker_id = "john-doe"
-        
+
         # Mock the graph service response
         mock_graph_service.get_speaker_network.return_value = {
             "speaker_id": speaker_id,
@@ -177,18 +196,18 @@ class TestGraphEndpoints:
                     "speaker_id": "jane-smith",
                     "name": "Jane Smith",
                     "interaction_count": 3,
-                    "total_time": 45.2
+                    "total_time": 45.2,
                 }
             ],
-            "network_stats": {
-                "total_connections": 1,
-                "avg_interaction_time": 45.2
-            }
+            "network_stats": {"total_connections": 1, "avg_interaction_time": 45.2},
         }
-        
-        with patch('app.api.v1.endpoints.graph.get_graph_service', return_value=mock_graph_service):
+
+        with patch(
+            "app.api.v1.endpoints.graph.get_graph_service",
+            return_value=mock_graph_service,
+        ):
             response = client.get(f"/api/v1/graph/speakers/{speaker_id}/network")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert data["speaker_id"] == speaker_id
@@ -198,13 +217,16 @@ class TestGraphEndpoints:
     async def test_speaker_network_not_found(self, client, mock_graph_service):
         """Test speaker network endpoint when speaker not found."""
         speaker_id = "non-existent-speaker"
-        
+
         # Mock the graph service to return None
         mock_graph_service.get_speaker_network.return_value = None
-        
-        with patch('app.api.v1.endpoints.graph.get_graph_service', return_value=mock_graph_service):
+
+        with patch(
+            "app.api.v1.endpoints.graph.get_graph_service",
+            return_value=mock_graph_service,
+        ):
             response = client.get(f"/api/v1/graph/speakers/{speaker_id}/network")
-            
+
             assert response.status_code == 404
             data = response.json()
             assert "not found" in data["detail"].lower()
@@ -213,7 +235,7 @@ class TestGraphEndpoints:
     async def test_topic_flow_endpoint(self, client, mock_graph_service):
         """Test topic flow endpoint."""
         topic_id = "greeting"
-        
+
         # Mock the graph service response
         mock_graph_service.get_topic_flow.return_value = {
             "topic_id": topic_id,
@@ -223,19 +245,19 @@ class TestGraphEndpoints:
                     "from_topic": "greeting",
                     "to_topic": "business",
                     "transition_count": 2,
-                    "conversations": ["conv-123", "conv-456"]
+                    "conversations": ["conv-123", "conv-456"],
                 }
             ],
             "keywords": ["hello", "hi", "greetings"],
-            "usage_stats": {
-                "conversation_count": 2,
-                "avg_duration": 15.5
-            }
+            "usage_stats": {"conversation_count": 2, "avg_duration": 15.5},
         }
-        
-        with patch('app.api.v1.endpoints.graph.get_graph_service', return_value=mock_graph_service):
+
+        with patch(
+            "app.api.v1.endpoints.graph.get_graph_service",
+            return_value=mock_graph_service,
+        ):
             response = client.get(f"/api/v1/graph/topics/{topic_id}/flow")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert data["topic_id"] == topic_id
@@ -246,13 +268,16 @@ class TestGraphEndpoints:
     async def test_topic_flow_not_found(self, client, mock_graph_service):
         """Test topic flow endpoint when topic not found."""
         topic_id = "non-existent-topic"
-        
+
         # Mock the graph service to return None
         mock_graph_service.get_topic_flow.return_value = None
-        
-        with patch('app.api.v1.endpoints.graph.get_graph_service', return_value=mock_graph_service):
+
+        with patch(
+            "app.api.v1.endpoints.graph.get_graph_service",
+            return_value=mock_graph_service,
+        ):
             response = client.get(f"/api/v1/graph/topics/{topic_id}/flow")
-            
+
             assert response.status_code == 404
             data = response.json()
             assert "not found" in data["detail"].lower()
@@ -266,30 +291,40 @@ class TestGraphEndpoints:
                 "speaker_id": "john-doe",
                 "name": "John Doe",
                 "total_speaking_time": 120.5,
-                "segment_count": 5
+                "segment_count": 5,
             }
         ]
-        
-        with patch('app.api.v1.endpoints.graph.get_graph_service', return_value=mock_graph_service):
+
+        with patch(
+            "app.api.v1.endpoints.graph.get_graph_service",
+            return_value=mock_graph_service,
+        ):
             # Test with query parameters
             response = client.get("/api/v1/graph/speakers?limit=10&offset=0")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert len(data) == 1
-            
+
             # Verify service was called with correct parameters
-            mock_graph_service.get_all_speakers.assert_called_once_with(limit=10, offset=0)
+            mock_graph_service.get_all_speakers.assert_called_once_with(
+                limit=10, offset=0
+            )
 
     @pytest.mark.asyncio
     async def test_graph_service_exception_handling(self, client, mock_graph_service):
         """Test graph service exception handling in endpoints."""
         # Mock the graph service to raise an exception
-        mock_graph_service.get_graph_stats.side_effect = Exception("Database connection failed")
-        
-        with patch('app.api.v1.endpoints.graph.get_graph_service', return_value=mock_graph_service):
+        mock_graph_service.get_graph_stats.side_effect = Exception(
+            "Database connection failed"
+        )
+
+        with patch(
+            "app.api.v1.endpoints.graph.get_graph_service",
+            return_value=mock_graph_service,
+        ):
             response = client.get("/api/v1/graph/stats")
-            
+
             assert response.status_code == 500
             data = response.json()
             assert "error" in data["detail"].lower()
@@ -304,7 +339,10 @@ class TestGraphEndpointSecurity:
         # Since the app doesn't require auth for these endpoints in test mode,
         # they should be accessible
         response = client.get("/api/v1/graph/stats")
-        assert response.status_code in [200, 500]  # Either success or server error, not auth error
+        assert response.status_code in [
+            200,
+            500,
+        ]  # Either success or server error, not auth error
 
     @pytest.mark.asyncio
     async def test_graph_endpoints_input_validation(self, client):
@@ -328,7 +366,9 @@ class TestGraphEndpointPerformance:
     """Test performance aspects of graph endpoints."""
 
     @pytest.mark.asyncio
-    async def test_graph_endpoints_with_large_datasets(self, client, mock_graph_service):
+    async def test_graph_endpoints_with_large_datasets(
+        self, client, mock_graph_service
+    ):
         """Test graph endpoints with large datasets."""
         # Mock large dataset
         large_speakers_list = [
@@ -336,16 +376,19 @@ class TestGraphEndpointPerformance:
                 "speaker_id": f"speaker-{i}",
                 "name": f"Speaker {i}",
                 "total_speaking_time": 100.0 + i,
-                "segment_count": i
+                "segment_count": i,
             }
             for i in range(1000)
         ]
-        
+
         mock_graph_service.get_all_speakers.return_value = large_speakers_list
-        
-        with patch('app.api.v1.endpoints.graph.get_graph_service', return_value=mock_graph_service):
+
+        with patch(
+            "app.api.v1.endpoints.graph.get_graph_service",
+            return_value=mock_graph_service,
+        ):
             response = client.get("/api/v1/graph/speakers")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert len(data) == 1000
@@ -359,31 +402,66 @@ class TestGraphEndpointPerformance:
                 "speaker_id": "speaker-1",
                 "name": "Speaker 1",
                 "total_speaking_time": 100.0,
-                "segment_count": 5
+                "segment_count": 5,
             }
         ]
-        
-        with patch('app.api.v1.endpoints.graph.get_graph_service', return_value=mock_graph_service):
+
+        with patch(
+            "app.api.v1.endpoints.graph.get_graph_service",
+            return_value=mock_graph_service,
+        ):
             response = client.get("/api/v1/graph/speakers?limit=1&offset=0")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert len(data) == 1
-            
+
             # Verify pagination parameters were passed
-            mock_graph_service.get_all_speakers.assert_called_once_with(limit=1, offset=0)
+            mock_graph_service.get_all_speakers.assert_called_once_with(
+                limit=1, offset=0
+            )
 
 
 # New tests for speaker and topic endpoints
 class TestSpeakerEndpoints:
     """Test cases for speaker-specific graph endpoints."""
 
-    @pytest.mark.parametrize("endpoint,service_path,method_name,mock_return", [
-        ("/api/v1/graph/speakers/top", "app.api.v1.endpoints.graph.get_speaker_graph_service", "get_top_speakers", [{"speaker_id": "spk1", "speaker_name": "Speaker 1", "conversation_count": 5}]),
-        ("/api/v1/graph/speakers/spk1/profile", "app.api.v1.endpoints.graph.get_speaker_graph_service", "get_speaker_profile", {"speaker_id": "spk1", "name": "Speaker 1", "topics_discussed": ["topic1"]}),
-        ("/api/v1/graph/speakers/spk1/similar", "app.api.v1.endpoints.graph.get_speaker_graph_service", "find_similar_speakers", [{"speaker_id": "spk2", "similarity_score": 0.8}]),
-    ])
-    def test_speaker_endpoints_success(self, client, endpoint, service_path, method_name, mock_return):
+    @pytest.mark.parametrize(
+        "endpoint,service_path,method_name,mock_return",
+        [
+            (
+                "/api/v1/graph/speakers/top",
+                "app.api.v1.endpoints.graph.get_speaker_graph_service",
+                "get_top_speakers",
+                [
+                    {
+                        "speaker_id": "spk1",
+                        "speaker_name": "Speaker 1",
+                        "conversation_count": 5,
+                    }
+                ],
+            ),
+            (
+                "/api/v1/graph/speakers/spk1/profile",
+                "app.api.v1.endpoints.graph.get_speaker_graph_service",
+                "get_speaker_profile",
+                {
+                    "speaker_id": "spk1",
+                    "name": "Speaker 1",
+                    "topics_discussed": ["topic1"],
+                },
+            ),
+            (
+                "/api/v1/graph/speakers/spk1/similar",
+                "app.api.v1.endpoints.graph.get_speaker_graph_service",
+                "find_similar_speakers",
+                [{"speaker_id": "spk2", "similarity_score": 0.8}],
+            ),
+        ],
+    )
+    def test_speaker_endpoints_success(
+        self, client, endpoint, service_path, method_name, mock_return
+    ):
         """Test successful calls to speaker endpoints."""
         mock_service = AsyncMock()
         mock_service.settings.graph.enabled = True
@@ -401,7 +479,10 @@ class TestSpeakerEndpoints:
         mock_service.settings.graph.enabled = True
         mock_service.get_speaker_profile.return_value = None
 
-        with patch("app.api.v1.endpoints.graph.get_speaker_graph_service", return_value=mock_service):
+        with patch(
+            "app.api.v1.endpoints.graph.get_speaker_graph_service",
+            return_value=mock_service,
+        ):
             response = client.get("/api/v1/graph/speakers/not-found/profile")
             assert response.status_code == 404
 
@@ -411,10 +492,17 @@ class TestSpeakerEndpoints:
         mock_service.settings.graph.enabled = True
         mock_service.get_top_speakers.return_value = [{"speaker_id": "spk1"}]
 
-        with patch("app.api.v1.endpoints.graph.get_speaker_graph_service", return_value=mock_service):
-            response = client.get("/api/v1/graph/speakers/top?limit=5&metric=conversations")
+        with patch(
+            "app.api.v1.endpoints.graph.get_speaker_graph_service",
+            return_value=mock_service,
+        ):
+            response = client.get(
+                "/api/v1/graph/speakers/top?limit=5&metric=conversations"
+            )
             assert response.status_code == 200
-            mock_service.get_top_speakers.assert_called_once_with(limit=5, metric="conversations")
+            mock_service.get_top_speakers.assert_called_once_with(
+                limit=5, metric="conversations"
+            )
 
     def test_find_similar_speakers_with_threshold(self, client):
         """Test similar speakers endpoint with threshold parameter."""
@@ -422,21 +510,50 @@ class TestSpeakerEndpoints:
         mock_service.settings.graph.enabled = True
         mock_service.find_similar_speakers.return_value = []
 
-        with patch("app.api.v1.endpoints.graph.get_speaker_graph_service", return_value=mock_service):
+        with patch(
+            "app.api.v1.endpoints.graph.get_speaker_graph_service",
+            return_value=mock_service,
+        ):
             response = client.get("/api/v1/graph/speakers/spk1/similar?threshold=0.8")
             assert response.status_code == 200
-            mock_service.find_similar_speakers.assert_called_once_with("spk1", similarity_threshold=0.8)
+            mock_service.find_similar_speakers.assert_called_once_with(
+                "spk1", similarity_threshold=0.8
+            )
 
 
 class TestTopicEndpoints:
     """Test cases for topic-specific graph endpoints."""
 
-    @pytest.mark.parametrize("endpoint,service_path,method_name,mock_return", [
-        ("/api/v1/graph/topics/trending", "app.api.v1.endpoints.graph.get_topic_graph_service", "get_trending_topics", [{"topic_id": "topic1", "topic_name": "Test Topic"}]),
-        ("/api/v1/graph/topics/topic1/profile", "app.api.v1.endpoints.graph.get_topic_graph_service", "get_topic_profile", {"topic_id": "topic1", "name": "Test Topic", "discussing_speakers": ["spk1"]}),
-        ("/api/v1/graph/topics/topic1/co-occurrence", "app.api.v1.endpoints.graph.get_topic_graph_service", "get_topic_cooccurrence", [{"cooccurring_topic_id": "topic2", "cooccurrence_count": 3}]),
-    ])
-    def test_topic_endpoints_success(self, client, endpoint, service_path, method_name, mock_return):
+    @pytest.mark.parametrize(
+        "endpoint,service_path,method_name,mock_return",
+        [
+            (
+                "/api/v1/graph/topics/trending",
+                "app.api.v1.endpoints.graph.get_topic_graph_service",
+                "get_trending_topics",
+                [{"topic_id": "topic1", "topic_name": "Test Topic"}],
+            ),
+            (
+                "/api/v1/graph/topics/topic1/profile",
+                "app.api.v1.endpoints.graph.get_topic_graph_service",
+                "get_topic_profile",
+                {
+                    "topic_id": "topic1",
+                    "name": "Test Topic",
+                    "discussing_speakers": ["spk1"],
+                },
+            ),
+            (
+                "/api/v1/graph/topics/topic1/co-occurrence",
+                "app.api.v1.endpoints.graph.get_topic_graph_service",
+                "get_topic_cooccurrence",
+                [{"cooccurring_topic_id": "topic2", "cooccurrence_count": 3}],
+            ),
+        ],
+    )
+    def test_topic_endpoints_success(
+        self, client, endpoint, service_path, method_name, mock_return
+    ):
         """Test successful calls to topic endpoints."""
         mock_service = AsyncMock()
         mock_service.settings.graph.enabled = True
@@ -454,7 +571,10 @@ class TestTopicEndpoints:
         mock_service.settings.graph.enabled = True
         mock_service.get_topic_profile.return_value = None
 
-        with patch("app.api.v1.endpoints.graph.get_topic_graph_service", return_value=mock_service):
+        with patch(
+            "app.api.v1.endpoints.graph.get_topic_graph_service",
+            return_value=mock_service,
+        ):
             response = client.get("/api/v1/graph/topics/not-found/profile")
             assert response.status_code == 404
 
@@ -464,10 +584,17 @@ class TestTopicEndpoints:
         mock_service.settings.graph.enabled = True
         mock_service.get_trending_topics.return_value = []
 
-        with patch("app.api.v1.endpoints.graph.get_topic_graph_service", return_value=mock_service):
-            response = client.get("/api/v1/graph/topics/trending?limit=15&time_window_hours=48")
+        with patch(
+            "app.api.v1.endpoints.graph.get_topic_graph_service",
+            return_value=mock_service,
+        ):
+            response = client.get(
+                "/api/v1/graph/topics/trending?limit=15&time_window_hours=48"
+            )
             assert response.status_code == 200
-            mock_service.get_trending_topics.assert_called_once_with(limit=15, time_window_hours=48)
+            mock_service.get_trending_topics.assert_called_once_with(
+                limit=15, time_window_hours=48
+            )
 
     def test_get_topic_cooccurrence_with_limit(self, client):
         """Test topic co-occurrence endpoint with limit parameter."""
@@ -475,21 +602,41 @@ class TestTopicEndpoints:
         mock_service.settings.graph.enabled = True
         mock_service.get_topic_cooccurrence.return_value = []
 
-        with patch("app.api.v1.endpoints.graph.get_topic_graph_service", return_value=mock_service):
+        with patch(
+            "app.api.v1.endpoints.graph.get_topic_graph_service",
+            return_value=mock_service,
+        ):
             response = client.get("/api/v1/graph/topics/topic1/co-occurrence?limit=50")
             assert response.status_code == 200
-            mock_service.get_topic_cooccurrence.assert_called_once_with("topic1", limit=50)
+            mock_service.get_topic_cooccurrence.assert_called_once_with(
+                "topic1", limit=50
+            )
 
 
 class TestGraphEndpointsServiceDisabled:
     """Test graph endpoints when service is disabled."""
 
-    @pytest.mark.parametrize("endpoint,service_path", [
-        ("/api/v1/graph/speakers/top", "app.api.v1.endpoints.graph.get_speaker_graph_service"),
-        ("/api/v1/graph/topics/trending", "app.api.v1.endpoints.graph.get_topic_graph_service"),
-        ("/api/v1/graph/speakers/spk1/profile", "app.api.v1.endpoints.graph.get_speaker_graph_service"),
-        ("/api/v1/graph/topics/topic1/profile", "app.api.v1.endpoints.graph.get_topic_graph_service"),
-    ])
+    @pytest.mark.parametrize(
+        "endpoint,service_path",
+        [
+            (
+                "/api/v1/graph/speakers/top",
+                "app.api.v1.endpoints.graph.get_speaker_graph_service",
+            ),
+            (
+                "/api/v1/graph/topics/trending",
+                "app.api.v1.endpoints.graph.get_topic_graph_service",
+            ),
+            (
+                "/api/v1/graph/speakers/spk1/profile",
+                "app.api.v1.endpoints.graph.get_speaker_graph_service",
+            ),
+            (
+                "/api/v1/graph/topics/topic1/profile",
+                "app.api.v1.endpoints.graph.get_topic_graph_service",
+            ),
+        ],
+    )
     def test_graph_endpoints_service_disabled(self, client, endpoint, service_path):
         """Test service unavailable when graph processing is disabled."""
         mock_service = AsyncMock()

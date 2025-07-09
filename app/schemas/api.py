@@ -1,14 +1,15 @@
 """API request and response models."""
 
 from datetime import datetime
-from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 # Request Models
 class TranscriptionRequest(BaseModel):
     """Request model for transcription job submissions."""
-    
+
     request_id: str = Field(..., description="Unique request identifier")
     user_id: str = Field(..., description="User identifier")
     audio_url: Optional[str] = Field(None, description="URL to audio file")
@@ -17,11 +18,14 @@ class TranscriptionRequest(BaseModel):
     include_diarization: bool = Field(False, description="Enable speaker diarization")
     include_summarization: bool = Field(False, description="Enable text summarization")
     include_translation: bool = Field(False, description="Enable translation")
-    target_language: Optional[str] = Field(None, description="Target language for translation")
+    target_language: Optional[str] = Field(
+        None, description="Target language for translation"
+    )
 
 
 class UserCreateRequest(BaseModel):
     """Request model for creating a new user."""
+
     email: EmailStr
     password: str = Field(..., min_length=8)
     full_name: Optional[str] = None
@@ -29,6 +33,7 @@ class UserCreateRequest(BaseModel):
 
 class UserUpdateRequest(BaseModel):
     """Request model for updating a user's profile."""
+
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
     is_active: Optional[bool] = None
@@ -37,7 +42,7 @@ class UserUpdateRequest(BaseModel):
 # Response Models
 class JobStatusResponse(BaseModel):
     """Response model for job status queries."""
-    
+
     request_id: str
     status: str
     created: datetime
@@ -46,10 +51,9 @@ class JobStatusResponse(BaseModel):
     error: Optional[str] = None
 
 
-
 class JobResponse(BaseModel):
     """Detailed job response model for admin operations."""
-    
+
     request_id: str
     user_id: str
     status: str
@@ -65,7 +69,7 @@ class JobResponse(BaseModel):
 
 class AdminJobListResponse(BaseModel):
     """Response model for admin job listing."""
-    
+
     jobs: List[JobResponse]
     total_count: int
     limit: int
@@ -74,13 +78,13 @@ class AdminJobListResponse(BaseModel):
 
 class AdminJobRequeueRequest(BaseModel):
     """Request model for requeuing a job."""
-    
+
     reason: Optional[str] = Field(None, description="Reason for requeuing the job")
 
 
 class AdminJobRequeueResponse(BaseModel):
     """Response model for job requeue operation."""
-    
+
     request_id: str
     new_task_id: str
     status: str
@@ -89,7 +93,7 @@ class AdminJobRequeueResponse(BaseModel):
 
 class TranscriptionResponse(BaseModel):
     """Response model for transcription job submissions."""
-    
+
     request_id: str
     status: str
     created: datetime
@@ -98,7 +102,7 @@ class TranscriptionResponse(BaseModel):
 
 class TranscriptionResult(BaseModel):
     """Complete transcription result."""
-    
+
     request_id: str
     conversation_id: str
     segments: List[Dict[str, Any]]
@@ -109,14 +113,14 @@ class TranscriptionResult(BaseModel):
 
 class GraphStatsResponse(BaseModel):
     """Response model for graph statistics."""
-    
+
     enabled: bool
     stats: Dict[str, Any]
 
 
 class SpeakerResponse(BaseModel):
     """Response model for speaker information."""
-    
+
     speaker_id: str
     name: str
     total_speaking_time: float
@@ -126,7 +130,7 @@ class SpeakerResponse(BaseModel):
 
 class TopicResponse(BaseModel):
     """Response model for topic information."""
-    
+
     topic_id: str
     name: str
     keyword_count: int
@@ -136,7 +140,7 @@ class TopicResponse(BaseModel):
 
 class ConversationGraphResponse(BaseModel):
     """Response model for conversation graph."""
-    
+
     conversation_id: str
     speakers: List[str]
     topics: List[str]
@@ -147,7 +151,7 @@ class ConversationGraphResponse(BaseModel):
 
 class SpeakerNetworkResponse(BaseModel):
     """Response model for speaker network."""
-    
+
     speaker_id: str
     name: str
     direct_interactions: List[Dict[str, Any]]
@@ -156,7 +160,7 @@ class SpeakerNetworkResponse(BaseModel):
 
 class TopicFlowResponse(BaseModel):
     """Response model for topic flow."""
-    
+
     topic_id: str
     name: str
     flow_patterns: List[Dict[str, Any]]
@@ -166,7 +170,7 @@ class TopicFlowResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     """Response model for health check."""
-    
+
     status: str
     timestamp: datetime
     services: Dict[str, str]
@@ -176,8 +180,9 @@ class HealthResponse(BaseModel):
 # New User Management Models
 class UserResponse(BaseModel):
     """Response model for user information."""
+
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: int
     email: EmailStr
     full_name: Optional[str] = None
@@ -189,6 +194,7 @@ class UserResponse(BaseModel):
 # Enhanced Graph Models
 class SpeakerProfileResponse(BaseModel):
     """Response model for a detailed speaker profile."""
+
     speaker_id: str
     name: str
     voice_characteristics: Dict[str, Any]
@@ -201,6 +207,7 @@ class SpeakerProfileResponse(BaseModel):
 
 class TopSpeakerResponse(BaseModel):
     """Response model for a top speaker entry."""
+
     speaker_id: str
     speaker_name: str
     conversation_count: int
@@ -211,6 +218,7 @@ class TopSpeakerResponse(BaseModel):
 
 class SimilarSpeakerResponse(BaseModel):
     """Response model for a similar speaker entry."""
+
     speaker_id: str
     speaker_name: str
     similarity_score: float
@@ -219,6 +227,7 @@ class SimilarSpeakerResponse(BaseModel):
 
 class TopicProfileResponse(BaseModel):
     """Response model for a detailed topic profile."""
+
     topic_id: str
     name: str
     keywords: List[str]
@@ -232,6 +241,7 @@ class TopicProfileResponse(BaseModel):
 
 class TrendingTopicResponse(BaseModel):
     """Response model for a trending topic."""
+
     topic_id: str
     topic_name: str
     keywords: List[str]
@@ -242,6 +252,7 @@ class TrendingTopicResponse(BaseModel):
 
 class TopicCooccurrenceResponse(BaseModel):
     """Response model for topic co-occurrence."""
+
     cooccurring_topic_id: str
     cooccurring_topic_name: str
     cooccurrence_count: int

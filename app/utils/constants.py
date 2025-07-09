@@ -4,8 +4,8 @@ Application-wide constants.
 
 # Audio processing constants
 AUDIO_SAMPLE_RATE = 16000  # Standard sample rate for Whisper models
-AUDIO_CHANNELS = 1        # Mono audio
-AUDIO_BIT_DEPTH = 16      # 16-bit audio
+AUDIO_CHANNELS = 1  # Mono audio
+AUDIO_BIT_DEPTH = 16  # 16-bit audio
 
 # File size limits
 MAX_UPLOAD_FILE_SIZE_MB = 100

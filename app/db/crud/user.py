@@ -16,7 +16,9 @@ class CRUDUser(CRUDBase):
         result = await db.execute(select(User).filter(User.email == email))
         return result.scalar_one_or_none()
 
-    async def create(self, db: AsyncSession, *, obj_in: UserCreateRequest, hashed_password: str) -> User:
+    async def create(
+        self, db: AsyncSession, *, obj_in: UserCreateRequest, hashed_password: str
+    ) -> User:
         db_obj = User(
             email=obj_in.email,
             full_name=obj_in.full_name,
@@ -45,7 +47,7 @@ class CRUDUser(CRUDBase):
         db: AsyncSession,
         *,
         db_obj: User,
-        obj_in: Union[UserUpdateRequest, Dict[str, Any]]
+        obj_in: Union[UserUpdateRequest, Dict[str, Any]],
     ) -> User:
         if isinstance(obj_in, dict):
             update_data = obj_in
@@ -55,7 +57,7 @@ class CRUDUser(CRUDBase):
         for field, value in update_data.items():
             if hasattr(db_obj, field):
                 setattr(db_obj, field, value)
-        
+
         db.add(db_obj)
         await db.commit()
         await db.refresh(db_obj)

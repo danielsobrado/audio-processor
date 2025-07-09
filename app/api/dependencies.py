@@ -4,21 +4,21 @@ Compatible with Omi's authentication patterns.
 """
 
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-import jwt
 import httpx
+import jwt
+import jwt.algorithms as algorithms
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-import jwt.algorithms as algorithms
 from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidTokenError
 
-from app.config.settings import get_settings, Settings
-from app.services.cache import CacheService
+from app.config.settings import Settings, get_settings
 from app.core.job_queue import JobQueue
-from app.services.transcription import TranscriptionService
 from app.db.session import AsyncSessionLocal
+from app.services.cache import CacheService
+from app.services.transcription import TranscriptionService
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -26,11 +26,13 @@ settings = get_settings()
 # HTTP Bearer token scheme
 security = HTTPBearer(auto_error=False)
 
+
 def get_settings_dependency() -> Settings:
     """
     Dependency to get Settings instance.
     """
     return get_settings()
+
 
 async def get_async_session():
     """
@@ -46,11 +48,13 @@ async def get_async_session():
         finally:
             await session.close()
 
+
 def get_cache_service() -> CacheService:
     """
     Dependency to get a CacheService instance.
     """
     return CacheService()
+
 
 def get_job_queue() -> JobQueue:
     """
@@ -58,12 +62,14 @@ def get_job_queue() -> JobQueue:
     """
     return JobQueue()
 
+
 def get_transcription_service() -> TranscriptionService:
     """
     Dependency to get a TranscriptionService instance.
     """
     job_queue = get_job_queue()
     return TranscriptionService(job_queue)
+
 
 # Cache for JWKS keys
 _jwks_cache: Dict[str, Any] = {}
@@ -120,9 +126,13 @@ async def get_jwks_keys() -> Dict[str, Any]:
 
             # Update cache using configurable TTL and proper timedelta
             _jwks_cache = keys
-            _jwks_cache_expiry = now + timedelta(seconds=settings.auth.jwks_cache_ttl_seconds)
+            _jwks_cache_expiry = now + timedelta(
+                seconds=settings.auth.jwks_cache_ttl_seconds
+            )
 
-            logger.debug(f"JWKS keys cached: {len(keys)} keys for {settings.auth.jwks_cache_ttl_seconds} seconds")
+            logger.debug(
+                f"JWKS keys cached: {len(keys)} keys for {settings.auth.jwks_cache_ttl_seconds} seconds"
+            )
             return keys
 
     except httpx.RequestError as e:
@@ -177,7 +187,7 @@ async def verify_jwt_token(token: str) -> dict:
                 "verify_aud": settings.auth.verify_audience,
                 "verify_iss": settings.auth.verify_signature,
                 "verify_exp": True,
-            }
+            },
         )
 
         return payload
@@ -196,7 +206,9 @@ async def verify_jwt_token(token: str) -> dict:
 class CurrentUser:
     """User information extracted from JWT token."""
 
-    def __init__(self, user_id: str, username: str, email: str, roles: list, claims: dict):
+    def __init__(
+        self, user_id: str, username: str, email: str, roles: list, claims: dict
+    ):
         self.user_id = user_id
         self.username = username
         self.email = email
@@ -213,7 +225,7 @@ class CurrentUser:
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> CurrentUser:
     """
     Extract and validate current user from JWT token.
@@ -221,39 +233,39 @@ async def get_current_user(
     """
     if not credentials:
         raise AuthenticationError("Missing authentication token")
-    
+
     token = credentials.credentials
     if not token:
         raise AuthenticationError("Empty authentication token")
-    
+
     # Verify token and get claims
     claims = await verify_jwt_token(token)
-    
+
     # Extract user information
     user_id = claims.get("sub")
     if not user_id:
         raise AuthenticationError("Token missing user ID")
-    
+
     username = claims.get("preferred_username", "")
     email = claims.get("email", "")
-    
+
     # Extract roles from token
     roles = []
-    
+
     # Check realm roles
     realm_access = claims.get("realm_access", {})
     if isinstance(realm_access, dict):
         roles.extend(realm_access.get("roles", []))
-    
+
     # Check client roles
     resource_access = claims.get("resource_access", {})
     if isinstance(resource_access, dict):
         client_access = resource_access.get(settings.auth.client_id, {})
         if isinstance(client_access, dict):
             roles.extend(client_access.get("roles", []))
-    
+
     logger.debug(f"User authenticated: {user_id} ({username}) with roles: {roles}")
-    
+
     return CurrentUser(
         user_id=user_id,
         username=username,
@@ -263,7 +275,9 @@ async def get_current_user(
     )
 
 
-async def get_current_user_id(current_user: CurrentUser = Depends(get_current_user)) -> str:
+async def get_current_user_id(
+    current_user: CurrentUser = Depends(get_current_user),
+) -> str:
     """
     Get current user ID (compatible with Omi's get_current_user_uid pattern).
     """
@@ -273,13 +287,16 @@ async def get_current_user_id(current_user: CurrentUser = Depends(get_current_us
 def require_roles(required_roles: List[str]):
     """
     Dependency factory for role-based authorization.
-    
+
     Usage:
         @router.get("/admin-only")
         async def admin_endpoint(user: CurrentUser = Depends(require_roles(["admin"]))):
             pass
     """
-    async def check_roles(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+
+    async def check_roles(
+        current_user: CurrentUser = Depends(get_current_user),
+    ) -> CurrentUser:
         if not current_user.has_any_role(required_roles):
             logger.warning(
                 f"Access denied for user {current_user.user_id}: "
@@ -289,20 +306,23 @@ def require_roles(required_roles: List[str]):
                 f"Access denied. Required roles: {', '.join(required_roles)}"
             )
         return current_user
-    
+
     return check_roles
 
 
 def require_scope(required_scope: str):
     """
     Dependency factory for scope-based authorization.
-    
+
     Usage:
         @router.get("/transcribe")
         async def transcribe(user: CurrentUser = Depends(require_scope("audio:transcribe"))):
             pass
     """
-    async def check_scope(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+
+    async def check_scope(
+        current_user: CurrentUser = Depends(get_current_user),
+    ) -> CurrentUser:
         scopes = current_user.claims.get("scope", "").split()
         if required_scope not in scopes:
             logger.warning(
@@ -311,20 +331,20 @@ def require_scope(required_scope: str):
             )
             raise AuthorizationError(f"Access denied. Required scope: {required_scope}")
         return current_user
-    
+
     return check_scope
 
 
 # Optional authentication for public endpoints
 async def get_optional_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> Optional[CurrentUser]:
     """
     Optional authentication - returns None if no valid token provided.
     """
     if not credentials:
         return None
-    
+
     try:
         return await get_current_user(credentials)
     except AuthenticationError:
@@ -336,85 +356,91 @@ async def get_optional_user(
 # Rate limiting dependency
 class RateLimiter:
     """Redis-based distributed rate limiter for API endpoints."""
-    
+
     def __init__(self, max_requests: int = 100, window_seconds: int = 3600):
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self._redis_client = None
         self._fallback_requests = {}  # Fallback for when Redis is unavailable
-    
+
     async def _get_redis_client(self):
         """Get Redis client, creating it if needed."""
         if self._redis_client is None:
             try:
                 import redis.asyncio as redis
+
                 from app.config.settings import get_settings
+
                 settings = get_settings()
-                
+
                 # Use Redis URL from settings or fallback to localhost
-                redis_url = getattr(settings, 'redis_url', 'redis://localhost:6379/0')
+                redis_url = getattr(settings, "redis_url", "redis://localhost:6379/0")
                 self._redis_client = redis.from_url(redis_url)
-                
+
                 # Test connection
                 await self._redis_client.ping()
-                
+
             except Exception as e:
-                logger.warning(f"Redis connection failed, falling back to in-memory: {e}")
+                logger.warning(
+                    f"Redis connection failed, falling back to in-memory: {e}"
+                )
                 self._redis_client = False  # Mark as failed
-        
+
         return self._redis_client if self._redis_client is not False else None
-    
+
     async def check_rate_limit(self, user_id: str) -> bool:
         """Check if user has exceeded rate limit using Redis or in-memory fallback."""
         redis_client = await self._get_redis_client()
-        
+
         if redis_client:
             return await self._check_rate_limit_redis(user_id, redis_client)
         else:
             return await self._check_rate_limit_memory(user_id)
-    
+
     async def _check_rate_limit_redis(self, user_id: str, redis_client) -> bool:
         """Redis-based rate limiting with sliding window."""
         try:
             key = f"rate_limit:{user_id}"
             now = datetime.now(timezone.utc).timestamp()
             window_start = now - self.window_seconds
-            
+
             # Remove old entries and count current requests
             await redis_client.zremrangebyscore(key, 0, window_start)
             current_requests = await redis_client.zcard(key)
-            
+
             if current_requests >= self.max_requests:
                 return False
-            
+
             # Add current request
             await redis_client.zadd(key, {str(now): now})
             await redis_client.expire(key, self.window_seconds)
-            
+
             return True
-            
+
         except Exception as e:
             logger.error(f"Redis rate limiting failed: {e}")
             # Fallback to in-memory
             return await self._check_rate_limit_memory(user_id)
-    
+
     async def _check_rate_limit_memory(self, user_id: str) -> bool:
         """In-memory rate limiting fallback (not distributed)."""
         now = datetime.now(timezone.utc)
         window_start = now.timestamp() - self.window_seconds
-        
+
         # Clean old entries
         user_requests = self._fallback_requests.get(user_id, [])
-        user_requests = [req_time for req_time in user_requests if req_time > window_start]
-        
+        user_requests = [
+            req_time for req_time in user_requests if req_time > window_start
+        ]
+
         # Check limit
         if len(user_requests) >= self.max_requests:
             return False
-        
+
         # Add current request
         user_requests.append(now.timestamp())
         self._fallback_requests[user_id] = user_requests
-        
+
         return True
 
 
@@ -425,7 +451,9 @@ rate_limiter = RateLimiter(
 )
 
 
-async def check_rate_limit(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+async def check_rate_limit(
+    current_user: CurrentUser = Depends(get_current_user),
+) -> CurrentUser:
     """Rate limiting dependency."""
     if not await rate_limiter.check_rate_limit(current_user.user_id):
         raise HTTPException(
