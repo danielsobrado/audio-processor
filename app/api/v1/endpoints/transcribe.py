@@ -6,10 +6,8 @@ Follows Omi's API patterns for audio processing.
 import logging
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Optional
 
-import aiofiles
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from app.api.dependencies import (
@@ -139,7 +137,6 @@ async def transcribe_audio(
         # Handle file upload
         audio_data = None
         filename = None
-        content_type = None
 
         if file:
             # Validate audio file
@@ -151,7 +148,7 @@ async def transcribe_audio(
             temp_file_path = await save_temp_audio_file(file)
 
             filename = file.filename
-            content_type = file.content_type
+            file.content_type
 
             logger.info(
                 f"File upload: {filename} saved to {temp_file_path} for user {user_id}"
@@ -175,7 +172,7 @@ async def transcribe_audio(
         )
 
         # Create job in queue
-        job = await job_queue.create_job(
+        await job_queue.create_job(
             request_id=request_id,
             user_id=user_id,
             job_type="transcription",

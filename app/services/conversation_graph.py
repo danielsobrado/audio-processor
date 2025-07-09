@@ -1,17 +1,11 @@
 """Conversation graph service for conversation-specific graph operations."""
 
 import logging
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from app.config.settings import get_settings
 from app.db.graph_session import get_graph_db_manager
-from app.schemas.graph import (
-    ConversationNode,
-    GraphNode,
-    GraphRelationship,
-    TranscriptSegmentNode,
-)
+from app.schemas.graph import ConversationNode, TranscriptSegmentNode
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +64,7 @@ class ConversationGraphService:
 
             # Create segments in batches
             for i in range(0, len(segments), self.batch_size):
-                batch = segments[i : i + self.batch_size]
+                batch = segments[i: i + self.batch_size]
 
                 # Prepare segment nodes
                 segment_props = []

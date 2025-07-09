@@ -2,16 +2,11 @@
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from app.config.settings import get_settings
 from app.db.graph_session import get_graph_db_manager
-from app.schemas.graph import (
-    DiscussesRelationship,
-    GraphNode,
-    GraphRelationship,
-    TopicNode,
-)
+from app.schemas.graph import DiscussesRelationship, TopicNode
 
 logger = logging.getLogger(__name__)
 

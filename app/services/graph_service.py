@@ -68,8 +68,7 @@ class GraphService:
             OPTIONAL MATCH (conv)-[:HAS_SPEAKER]->(s:Speaker)
             OPTIONAL MATCH (conv)-[:HAS_TOPIC]->(t:Topic)
             OPTIONAL MATCH (s)-[r:SPEAKS_TO]->(s2:Speaker)
-            RETURN conv, collect(DISTINCT s) as speakers, 
-                   collect(DISTINCT t) as topics,
+            RETURN conv, collect(DISTINCT s) as speakers,collect(DISTINCT t) as topics,
                    collect(DISTINCT r) as relationships
             """
 
@@ -151,7 +150,8 @@ class GraphService:
             # Query for speaker interactions
             query = """
             MATCH (conv:Conversation {id: $conversation_id})-[:HAS_SPEAKER]->(s1:Speaker)
-            OPTIONAL MATCH (s1)-[r:SPEAKS_TO]->(s2:Speaker)<-[:HAS_SPEAKER]-(conv)
+            OPTIONAL MATCH (s1)-[r:SPEAKS_TO]->(s2:Speaker)
+                          <-[:HAS_SPEAKER]-(conv)
             RETURN s1.id as speaker_id, s1.name as speaker_name,
                    s1.speaking_time as speaking_time,
                    collect({
@@ -273,11 +273,6 @@ class GraphService:
                 direction_clause = "<-[r]-"
             else:  # BOTH
                 direction_clause = "-[r]-"
-
-            type_filter = ""
-            if relationship_types:
-                type_list = "|".join(relationship_types)
-                type_filter = f":{type_list}"
 
             query = f"""
             MATCH (n {{id: $node_id}}){direction_clause}(related)
@@ -406,7 +401,8 @@ class GraphService:
             manager = await get_graph_db_manager()
             queries = []
             for node in nodes:
-                query = f"MERGE (n:{node.node_type.value} {{id: $id}}) ON CREATE SET n = $props ON MATCH SET n += $props"
+                query = f"MERGE (n:{
+                                 node.node_type.value} {{id: $id}}) ON CREATE SET n = $props ON MATCH SET n += $props"
                 queries.append((query, node.to_cypher_props()))
             results = await manager.execute_batch_transactions(queries)
             return len(results)

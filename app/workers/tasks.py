@@ -73,7 +73,8 @@ async def _send_callback_notification(
             # Log response for debugging
             if response.is_success:
                 logger.info(
-                    f"Callback notification sent successfully for job {request_id}: {response.status_code}"
+                    f"Callback notification sent successfully for job {
+                        request_id}: {response.status_code}"
                 )
             else:
                 logger.warning(
@@ -311,7 +312,8 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
                         error=str(e),
                     )
 
-            # Cleanup temporary file in case of failure for both uploads and URL downloads
+            # Cleanup temporary file in case of failure for both uploads and
+            # URL downloads
             if "audio_path" in locals() and audio_path.exists():
                 audio_path.unlink()
 

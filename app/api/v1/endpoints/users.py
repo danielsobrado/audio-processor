@@ -119,7 +119,8 @@ async def update_current_user(
         db_user = await crud.user.get_by_email(db, email=current_user.email)
         if not db_user:
             logger.info(
-                f"User '{current_user.email}' not found locally. Provisioning new user for update."
+                f"User '{
+                    current_user.email}' not found locally. Provisioning new user for update."
             )
             db_user = await crud.user.create_from_token(db, token_data=current_user)
 

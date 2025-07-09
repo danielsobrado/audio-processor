@@ -3,7 +3,7 @@
 import logging
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, Optional
 
 from app.config.settings import get_settings
 
@@ -16,31 +16,26 @@ class GraphDatabaseDriver(ABC):
     @abstractmethod
     async def connect(self) -> None:
         """Establish connection to graph database."""
-        pass
 
     @abstractmethod
     async def disconnect(self) -> None:
         """Close connection to graph database."""
-        pass
 
     @abstractmethod
     async def execute_read_query(
         self, query: str, parameters: Optional[Dict[str, Any]] = None
     ) -> List[Dict]:
         """Execute read query and return results."""
-        pass
 
     @abstractmethod
     async def execute_write_query(
         self, query: str, parameters: Optional[Dict[str, Any]] = None
     ) -> List[Dict]:
         """Execute write query and return results."""
-        pass
 
     @abstractmethod
     async def execute_batch_queries(self, queries: List[tuple]) -> List[Dict]:
         """Execute multiple queries in batch."""
-        pass
 
 
 class Neo4jDriver(GraphDatabaseDriver):

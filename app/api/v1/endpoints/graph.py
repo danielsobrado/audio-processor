@@ -14,11 +14,7 @@ from app.schemas.api import (
     TopSpeakerResponse,
     TrendingTopicResponse,
 )
-from app.schemas.graph import NodeType, RelationshipType
-from app.services.conversation_graph import (
-    ConversationGraphService,
-    get_conversation_graph_service,
-)
+from app.schemas.graph import RelationshipType
 from app.services.graph_service import GraphService, get_graph_service
 from app.services.speaker_graph import SpeakerGraphService, get_speaker_graph_service
 from app.services.topic_graph import TopicGraphService, get_topic_graph_service

@@ -5,7 +5,6 @@ from typing import Any, Dict, Optional, Union
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.core.security import get_password_hash
 from app.db.crud.base import CRUDBase
 from app.schemas.api import UserCreateRequest, UserUpdateRequest
 from app.schemas.database import User

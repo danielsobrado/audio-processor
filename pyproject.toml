@@ -72,6 +72,7 @@ Issues = "https://github.com/your-org/audio-processor/issues"
 
 [dependency-groups]
 dev = [
+    "autoflake>=2.3.1",
     "pyright>=1.1.402",
     "pytest-asyncio>=1.0.0",
 ]

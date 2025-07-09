@@ -4,7 +4,7 @@ This implementation uses Hugging Face's transformers library.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Optional
 
 try:
     import torch
@@ -38,7 +38,8 @@ class TranslationService:
             else:
                 self.device = -1
             logger.info(
-                f"TranslationService initialized with model '{self.model_name}' on device '{self.settings.translation.device}'"
+                f"TranslationService initialized with model '{
+                    self.model_name}' on device '{self.settings.translation.device}'"
             )
         else:
             logger.info("TranslationService is disabled by configuration.")
@@ -104,13 +105,15 @@ class TranslationService:
                 if isinstance(result, dict) and "translation_text" in result:
                     translated_text = str(result["translation_text"])
                     logger.debug(
-                        f"Translated text to '{target_language}': {translated_text[:100]}..."
+                        f"Translated text to '{target_language}': {
+                            translated_text[:100]}..."
                     )
                     return translated_text
             elif isinstance(results, dict) and "translation_text" in results:
                 translated_text = str(results.get("translation_text", ""))
                 logger.debug(
-                    f"Translated text to '{target_language}': {translated_text[:100]}..."
+                    f"Translated text to '{target_language}': {
+                        translated_text[:100]}..."
                 )
                 return translated_text
 
