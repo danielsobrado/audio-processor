@@ -6,7 +6,8 @@ import logging
 from datetime import datetime, timezone
 from typing import List, Optional, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_async_session, require_roles
@@ -60,7 +61,7 @@ async def list_all_jobs(
                 query = query.where(TranscriptionJob.status == job_status)
             except ValueError:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
+                    status_code=http_status.HTTP_400_BAD_REQUEST,
                     detail=f"Invalid status filter: {status_filter}. Valid values: {[s.value for s in JobStatus]}",
                 )
 
@@ -79,32 +80,43 @@ async def list_all_jobs(
         result = await session.execute(query)
         jobs = result.scalars().all()
 
-        # Convert to response format
+        # Convert to response format using new unified database schema
         job_responses = []
         for job in jobs:
-            # Cast to help pyright understand these are actual values, not Column objects
-            job_request_id = str(cast(str, job.request_id))
-            job_user_id = str(cast(int, job.user_id))
-            job_status = cast(JobStatus, job.status).value
-            job_created = cast(datetime, job.created_at)
-            job_updated = cast(datetime, job.updated_at)
-            job_transcription = cast(str | None, job.transcription_result)
-            job_error = cast(str | None, job.error_message)
-
+            # Type casting for pyright compatibility with SQLAlchemy models
+            request_id = cast(str, job.request_id)
+            user_id = cast(int, job.user_id)
+            status = cast(JobStatus, job.status)
+            progress = cast(float, job.progress)
+            created = cast(datetime, job.created_at)
+            updated = cast(datetime, job.updated_at)
+            result = cast(dict | None, job.result)
+            error = cast(str | None, job.error)
+            task_id = cast(str | None, job.task_id)
+            job_type = cast(str, job.job_type)
+            parameters = cast(dict | None, job.parameters)
+            
+            # Fallback to legacy fields if new fields are None
+            transcription_result = cast(str | None, job.transcription_result)
+            error_message = cast(str | None, job.error_message)
+            
+            if result is None and transcription_result:
+                result = {"transcription": transcription_result}
+            if error is None:
+                error = error_message
+            
             job_response = JobResponse(
-                request_id=job_request_id,
-                user_id=job_user_id,
-                status=job_status,
-                progress=0.0,  # Progress not in current schema
-                created=job_created,
-                updated=job_updated,
-                result=(
-                    {"transcription": job_transcription} if job_transcription else None
-                ),
-                error=job_error,
-                task_id=None,  # Task ID not in current schema
-                job_type="transcription",  # Default job type
-                parameters=None,  # Parameters not in current schema
+                request_id=str(request_id),
+                user_id=str(user_id),
+                status=status.value,
+                progress=progress,
+                created=created,
+                updated=updated,
+                result=result,
+                error=error,
+                task_id=task_id,
+                job_type=job_type,
+                parameters=parameters,
             )
             job_responses.append(job_response)
 
@@ -120,7 +132,7 @@ async def list_all_jobs(
     except Exception as e:
         logger.error(f"Failed to retrieve admin job list: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve job list",
         )
 
@@ -162,7 +174,7 @@ async def requeue_job(
 
         if not job:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail=f"Job with request_id {request_id} not found",
             )
 
@@ -170,7 +182,7 @@ async def requeue_job(
         job_status = cast(JobStatus, job.status)
         if job_status != JobStatus.FAILED:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail=f"Job status is '{job.status.value}'. Only failed jobs can be requeued.",
             )
 
@@ -190,7 +202,8 @@ async def requeue_job(
         await session.commit()
 
         # Create new Celery task
-        task_data = job.parameters.copy() if job.parameters else {}
+        job_parameters = cast(dict | None, job.parameters)
+        task_data = job_parameters.copy() if job_parameters else {}
         task_data["request_id"] = request_id
 
         # Submit new task
@@ -226,7 +239,7 @@ async def requeue_job(
     except Exception as e:
         logger.error(f"Failed to requeue job {request_id}: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to requeue job",
         )
 
@@ -260,31 +273,44 @@ async def get_job_details(
 
         if not job:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail=f"Job with request_id {request_id} not found",
             )
 
-        # Cast to help pyright understand these are actual values, not Column objects
-        job_request_id = str(cast(str, job.request_id))
-        job_user_id = str(cast(int, job.user_id))
-        job_status = cast(JobStatus, job.status).value
-        job_created = cast(datetime, job.created_at)
-        job_updated = cast(datetime, job.updated_at)
-        job_transcription = cast(str | None, job.transcription_result)
-        job_error = cast(str | None, job.error_message)
-
+        # Type casting for pyright compatibility with SQLAlchemy models
+        request_id = cast(str, job.request_id)
+        user_id = cast(int, job.user_id)
+        status = cast(JobStatus, job.status)
+        progress = cast(float, job.progress)
+        created = cast(datetime, job.created_at)
+        updated = cast(datetime, job.updated_at)
+        result = cast(dict | None, job.result)
+        error = cast(str | None, job.error)
+        task_id = cast(str | None, job.task_id)
+        job_type = cast(str, job.job_type)
+        parameters = cast(dict | None, job.parameters)
+        
+        # Fallback to legacy fields if new fields are None
+        transcription_result = cast(str | None, job.transcription_result)
+        error_message = cast(str | None, job.error_message)
+        
+        if result is None and transcription_result:
+            result = {"transcription": transcription_result}
+        if error is None:
+            error = error_message
+        
         return JobResponse(
-            request_id=job_request_id,
-            user_id=job_user_id,
-            status=job_status,
-            progress=0.0,  # Progress not in current schema
-            created=job_created,
-            updated=job_updated,
-            result={"transcription": job_transcription} if job_transcription else None,
-            error=job_error,
-            task_id=None,  # Task ID not in current schema
-            job_type="transcription",  # Default job type
-            parameters=None,  # Parameters not in current schema
+            request_id=str(request_id),
+            user_id=str(user_id),
+            status=status.value,
+            progress=progress,
+            created=created,
+            updated=updated,
+            result=result,
+            error=error,
+            task_id=task_id,
+            job_type=job_type,
+            parameters=parameters,
         )
 
     except HTTPException:
@@ -294,7 +320,7 @@ async def get_job_details(
             f"Failed to retrieve job details for {request_id}: {e}", exc_info=True
         )
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve job details",
         )
 
@@ -333,7 +359,7 @@ async def delete_job(
 
         if not job:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail=f"Job with request_id {request_id} not found",
             )
 
@@ -353,7 +379,7 @@ async def delete_job(
     except Exception as e:
         logger.error(f"Failed to delete job {request_id}: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete job",
         )
 
@@ -410,6 +436,6 @@ async def get_system_stats(
     except Exception as e:
         logger.error(f"Failed to retrieve system stats: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve system statistics",
         )

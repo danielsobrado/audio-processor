@@ -7,8 +7,10 @@ from sqlalchemy import (
     Column,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Integer,
+    JSON,
     String,
     Text,
 )
@@ -56,8 +58,13 @@ class TranscriptionJob(Base):
 
     # Job details
     status = Column(Enum(JobStatus), default=JobStatus.PENDING)
+    progress = Column(Float, default=0.0, nullable=False)
     audio_url = Column(String, nullable=True)
     audio_filename = Column(String, nullable=True)
+
+    # Task management
+    task_id = Column(String, nullable=True, index=True)
+    job_type = Column(String, default="transcription", nullable=False)
 
     # Configuration
     language = Column(String, nullable=True)
@@ -65,8 +72,13 @@ class TranscriptionJob(Base):
     include_diarization = Column(Boolean, default=False)
     include_summarization = Column(Boolean, default=False)
     include_translation = Column(Boolean, default=False)
+    parameters = Column(JSON, nullable=True)
 
-    # Results
+    # Results (unified field names for API consistency)
+    result = Column(JSON, nullable=True)
+    error = Column(Text, nullable=True)
+
+    # Legacy fields (keep for backward compatibility during migration)
     transcription_result = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
 
