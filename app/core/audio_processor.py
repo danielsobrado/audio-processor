@@ -56,7 +56,16 @@ class AudioProcessor:
     async def initialize_models(self) -> None:
         """
         Initialize all required models.
-        TODO: Implement model caching and lazy loading.
+        
+        Note: Current implementation loads all models on worker startup, which is a
+        valid and common pattern for production deployments. This ensures:
+        - Consistent model loading time
+        - Predictable memory usage
+        - Faster individual request processing
+        - Better resource management in containerized environments
+        
+        Future enhancement: Consider implementing model caching and lazy loading
+        for environments with memory constraints or dynamic model selection.
         """
         try:
             logger.info("Loading WhisperX transcription model...")

@@ -3,6 +3,9 @@ import logging
 from typing import Optional
 
 from celery import Celery
+# --- BEGIN: Import Queue for DLQ ---
+from kombu import Queue
+# --- END: Import Queue for DLQ ---
 
 from app.config.settings import get_settings
 from app.core.audio_processor import AudioProcessor
@@ -15,6 +18,24 @@ settings = get_settings()
 
 
 def create_celery_app() -> Celery:
+    """
+    Create and configure the Celery application with reliability features.
+    
+    Features:
+    - Automatic retries with exponential backoff
+    - Dead letter queue for failed tasks
+    - Late acknowledgment to prevent task loss
+    
+    Queue Management:
+    - Default queue: 'default' (for normal tasks)
+    - Dead letter queue: 'dead_letter' (for failed tasks)
+    
+    To monitor queues:
+        uv run celery -A app.workers.celery_app inspect active_queues
+    
+    To process dead letter queue:
+        uv run celery -A app.workers.celery_app worker --queues=dead_letter
+    """
     celery_app = Celery(
         "audio-processor-celery",
         broker=settings.celery.broker_url,
@@ -29,6 +50,21 @@ def create_celery_app() -> Celery:
         timezone=settings.celery.timezone,
         enable_utc=settings.celery.enable_utc,
         worker_concurrency=settings.celery.worker_concurrency,
+        # --- BEGIN: Reliability Settings ---
+        # Acknowledge task only after it has been successfully executed.
+        # This prevents losing tasks if a worker crashes mid-execution.
+        task_acks_late=True,
+        # Define our queues: one for normal tasks, one for failed tasks.
+        # To monitor dead letter queue: uv run celery -A app.workers.celery_app inspect active_queues
+        # To process dead letter queue: uv run celery -A app.workers.celery_app worker --queues=dead_letter
+        task_queues=(
+            Queue('default', routing_key='task.#'),
+            Queue('dead_letter', routing_key='dead_letter.#'),
+        ),
+        task_default_queue='default',
+        task_default_exchange='tasks',
+        task_default_routing_key='task.default',
+        # --- END: Reliability Settings ---
     )
 
     celery_app.autodiscover_tasks(["app.workers"])

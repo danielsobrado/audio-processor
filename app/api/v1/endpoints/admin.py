@@ -129,6 +129,9 @@ async def list_all_jobs(
             offset=offset,
         )
 
+    except HTTPException:
+        # Re-raise HTTPExceptions (like 400 errors) as-is
+        raise
     except Exception as e:
         logger.error(f"Failed to retrieve admin job list: {e}", exc_info=True)
         raise HTTPException(
