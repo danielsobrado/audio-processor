@@ -73,6 +73,31 @@ services:
     networks:
       - audio_processor_dev
 
+  neo4j:
+    image: neo4j:5.15-community
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    environment:
+      - NEO4J_AUTH=neo4j/devpassword
+      - NEO4J_PLUGINS=["graph-data-science"]
+      - NEO4J_apoc_export_file_enabled=true
+      - NEO4J_apoc_import_file_enabled=true
+      - NEO4J_apoc_import_file_use__neo4j__config=true
+      - NEO4J_dbms_security_procedures_unrestricted=gds.*,apoc.*
+      - NEO4J_dbms_security_procedures_allowlist=gds.*,apoc.*
+    volumes:
+      - neo4j_dev_data:/data
+      - neo4j_dev_logs:/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p devpassword 'MATCH (n) RETURN count(n)'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - audio_processor_dev
+
   worker:
     build:
       context: ../..
@@ -136,6 +161,10 @@ volumes:
   postgres_dev_data:
     driver: local
   redis_dev_data:
+    driver: local
+  neo4j_dev_data:
+    driver: local
+  neo4j_dev_logs:
     driver: local
 
 networks:
