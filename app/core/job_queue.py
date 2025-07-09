@@ -4,7 +4,7 @@ Handles job creation, status updates, and retrieval from the database.
 """
 
 import logging
-from typing import Dict, List, Optional, cast
+from typing import Dict, List, Optional
 
 from sqlalchemy.future import select
 

@@ -1,5 +1,4 @@
 import re
-from typing import Optional
 
 from app.config.settings import get_settings
 
@@ -47,5 +46,6 @@ def validate_transcription_params(
     # Validate utterance split
     if not 0.1 <= utt_split <= 1.0:
         raise ValueError(
-            f"Invalid utterance split threshold: {utt_split}. Must be between 0.1 and 1.0."
+            f"Invalid utterance split threshold: {
+                utt_split}. Must be between 0.1 and 1.0."
         )

@@ -4,14 +4,13 @@ Admin endpoints for job management and system operations.
 
 import logging
 from datetime import datetime, timezone
-from typing import List, Optional, cast
+from typing import Optional, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_async_session, require_roles
-from app.core.job_queue import JobQueue
 from app.schemas.api import (
     AdminJobListResponse,
     AdminJobRequeueRequest,
@@ -62,7 +61,8 @@ async def list_all_jobs(
             except ValueError:
                 raise HTTPException(
                     status_code=http_status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid status filter: {status_filter}. Valid values: {[s.value for s in JobStatus]}",
+                    detail=f"Invalid status filter: {status_filter}. Valid values: {
+                        [s.value for s in JobStatus]}",
                 )
 
         # Get total count for pagination
@@ -95,16 +95,16 @@ async def list_all_jobs(
             task_id = cast(str | None, job.task_id)
             job_type = cast(str, job.job_type)
             parameters = cast(dict | None, job.parameters)
-            
+
             # Fallback to legacy fields if new fields are None
             transcription_result = cast(str | None, job.transcription_result)
             error_message = cast(str | None, job.error_message)
-            
+
             if result is None and transcription_result:
                 result = {"transcription": transcription_result}
             if error is None:
                 error = error_message
-            
+
             job_response = JobResponse(
                 request_id=str(request_id),
                 user_id=str(user_id),
@@ -183,7 +183,8 @@ async def requeue_job(
         if job_status != JobStatus.FAILED:
             raise HTTPException(
                 status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail=f"Job status is '{job.status.value}'. Only failed jobs can be requeued.",
+                detail=f"Job status is '{
+                    job.status.value}'. Only failed jobs can be requeued.",
             )
 
         # Update job status to pending
@@ -249,7 +250,10 @@ async def requeue_job(
     response_model=JobResponse,
     dependencies=[Depends(require_roles(["admin"]))],
     summary="Get detailed job information",
-    description="Retrieve detailed information about any job in the system. Admin access required.",
+    description=(
+        "Retrieve detailed information about any job in the system. "
+        "Admin access required."
+    ),
 )
 async def get_job_details(
     request_id: str,
@@ -289,16 +293,16 @@ async def get_job_details(
         task_id = cast(str | None, job.task_id)
         job_type = cast(str, job.job_type)
         parameters = cast(dict | None, job.parameters)
-        
+
         # Fallback to legacy fields if new fields are None
         transcription_result = cast(str | None, job.transcription_result)
         error_message = cast(str | None, job.error_message)
-        
+
         if result is None and transcription_result:
             result = {"transcription": transcription_result}
         if error is None:
             error = error_message
-        
+
         return JobResponse(
             request_id=str(request_id),
             user_id=str(user_id),

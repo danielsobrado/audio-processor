@@ -1,6 +1,6 @@
 """CRUD base class for database operations."""
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Union
 
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel

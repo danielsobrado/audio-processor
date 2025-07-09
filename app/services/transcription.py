@@ -62,7 +62,8 @@ class TranscriptionService:
             await self.job_queue.update_job(request.request_id, task_id=task.id)
 
             logger.info(
-                f"Transcription job {request.request_id} submitted with task ID {task.id}"
+                f"Transcription job {
+                    request.request_id} submitted with task ID {task.id}"
             )
 
             return request.request_id

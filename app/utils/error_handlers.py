@@ -10,8 +10,6 @@ logger = logging.getLogger(__name__)
 class AudioProcessingError(Exception):
     """Custom exception for audio processing errors."""
 
-    pass
-
 
 async def http_exception_handler(request: Request, exc: HTTPException):
     """

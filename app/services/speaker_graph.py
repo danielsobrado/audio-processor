@@ -2,16 +2,11 @@
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from app.config.settings import get_settings
 from app.db.graph_session import get_graph_db_manager
-from app.schemas.graph import (
-    GraphNode,
-    GraphRelationship,
-    SpeakerNode,
-    SpeaksInRelationship,
-)
+from app.schemas.graph import SpeakerNode, SpeaksInRelationship
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +155,7 @@ class SpeakerGraphService:
 
         try:
             manager = await get_graph_db_manager()
-            query = f"""
+            query = """
             MATCH (s:Speaker {{id: $speaker_id}})
             MATCH (s)-[:SPEAKS_IN]->(c:Conversation)<-[:SPEAKS_IN]-(other:Speaker)
             WHERE other.id <> s.id
@@ -215,8 +210,7 @@ class SpeakerGraphService:
             query = """
             MATCH (s:Speaker {id: $speaker_id})-[:SPEAKS_IN]->(c:Conversation)
             MATCH (c)-[:CONTAINS]->(seg:TranscriptSegment {speaker_id: $speaker_id})
-            WITH s, c, seg, 
-                 avg(seg.duration) as avg_segment_duration,
+            WITH s, c, seg,avg(seg.duration) as avg_segment_duration,
                  count(seg) as segment_count,
                  sum(seg.duration) as total_speaking_time
             OPTIONAL MATCH (c)-[:CONTAINS]->(other_seg:TranscriptSegment)
@@ -331,8 +325,7 @@ class SpeakerGraphService:
             MATCH (s:Speaker)-[:SPEAKS_IN]->(c:Conversation)
             WHERE s.id <> $speaker_id
             MATCH (c)-[:CONTAINS]->(seg:TranscriptSegment {speaker_id: s.id})
-            WITH s, 
-                 avg(seg.duration) as avg_segment_duration,
+            WITH s,avg(seg.duration) as avg_segment_duration,
                  count(seg) as segment_count,
                  sum(seg.duration) as total_speaking_time
             RETURN s.id as speaker_id,

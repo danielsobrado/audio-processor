@@ -131,7 +131,8 @@ async def get_jwks_keys() -> Dict[str, Any]:
             )
 
             logger.debug(
-                f"JWKS keys cached: {len(keys)} keys for {settings.auth.jwks_cache_ttl_seconds} seconds"
+                f"JWKS keys cached: {len(keys)} keys for {
+                                         settings.auth.jwks_cache_ttl_seconds} seconds"
             )
             return keys
 
@@ -316,7 +317,9 @@ def require_scope(required_scope: str):
 
     Usage:
         @router.get("/transcribe")
-        async def transcribe(user: CurrentUser = Depends(require_scope("audio:transcribe"))):
+        async def transcribe(
+            user: CurrentUser = Depends(require_scope("audio:transcribe"))
+        ):
             pass
     """
 

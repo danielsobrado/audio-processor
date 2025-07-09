@@ -6,10 +6,10 @@ Supports multiple environments with YAML configuration files.
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import yaml
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.utils.constants import (

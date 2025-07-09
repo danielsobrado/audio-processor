@@ -447,7 +447,8 @@ class AudioProcessor:
                     )
                 elif sr > 48000:
                     quality_report["recommendations"].append(
-                        f"High sample rate ({sr}Hz), can downsample to save processing time"
+                        f"High sample rate ({
+                                            sr}Hz), can downsample to save processing time"
                     )
 
             return quality_report

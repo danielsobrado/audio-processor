@@ -6,7 +6,6 @@ import logging
 import os
 import uuid
 from pathlib import Path
-from typing import Optional
 
 import aiofiles
 from fastapi import HTTPException, UploadFile, status
@@ -32,7 +31,8 @@ async def validate_audio_file(file: UploadFile) -> None:
     if file.size is None or file.size > settings.max_file_size:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File size exceeds limit of {settings.max_file_size / 1024 / 1024:.2f} MB",
+            detail=f"File size exceeds limit of {
+                settings.max_file_size / 1024 / 1024:.2f} MB",
         )
 
     # Check content type
@@ -43,7 +43,8 @@ async def validate_audio_file(file: UploadFile) -> None:
     if file.content_type is None or file.content_type not in supported_formats:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=f"Unsupported audio format. Supported formats: {settings.supported_formats}",
+            detail=f"Unsupported audio format. Supported formats: {
+                settings.supported_formats}",
         )
 
 

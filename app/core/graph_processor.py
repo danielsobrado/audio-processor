@@ -5,7 +5,7 @@ import logging
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from app.config.settings import get_settings
 from app.schemas.graph import (
@@ -13,7 +13,6 @@ from app.schemas.graph import (
     DiscussesRelationship,
     EntityNode,
     FollowsRelationship,
-    GraphNode,
     GraphRelationship,
     MentionsRelationship,
     RelationshipType,
@@ -23,9 +22,6 @@ from app.schemas.graph import (
     TranscriptSegmentNode,
 )
 from app.services import graph_service
-from app.services.conversation_graph import get_conversation_graph_service
-from app.services.speaker_graph import get_speaker_graph_service
-from app.services.topic_graph import get_topic_graph_service
 
 logger = logging.getLogger(__name__)
 
@@ -350,7 +346,7 @@ class GraphProcessor:
         topics = graph_data["topics"]
         entities = graph_data["entities"]
         transcript_segments = graph_data["transcript_segments"]
-        segments_data = graph_data["segments_data"]
+        graph_data["segments_data"]
 
         # Speaker -> Conversation relationships
         for speaker_id, speaker_node in speakers.items():
