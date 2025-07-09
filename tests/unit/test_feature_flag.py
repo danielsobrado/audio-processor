@@ -25,7 +25,7 @@ def test_feature_flag_logic():
 
     # Verify feature flag check is present
     assert "settings.enable_url_processing" in source
-    assert "Processing from a URL is disabled" in source
+    assert "Processing from a URL is currently disabled" in source
     assert "get_settings_dependency" in source
 
     # Verify the check comes after basic validation

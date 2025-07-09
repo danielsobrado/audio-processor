@@ -95,7 +95,19 @@ async def _send_callback_notification(
         )
 
 
-@celery_app.task(bind=True, name="audio_processor.workers.tasks.process_audio")
+# --- BEGIN: Update Task Decorator for Retries ---
+@celery_app.task(
+    bind=True,
+    name="audio_processor.workers.tasks.process_audio",
+    autoretry_for=(Exception,),  # Retry on any standard exception
+    retry_kwargs={'max_retries': 3},  # Retry a maximum of 3 times
+    retry_backoff=True,  # Enable exponential backoff (e.g., 2s, 4s, 8s)
+    retry_backoff_max=600,  # Cap backoff delay at 10 minutes
+    task_acks_late=True,  # Ensure task is only ack'd on success
+    # Don't retry on certain exceptions that indicate permanent failure
+    dont_autoretry_for=(ValueError, FileNotFoundError, KeyError),
+)
+# --- END: Update Task Decorator for Retries ---
 def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = None):
     """
     Celery task to process audio files (sync wrapper for async operations).
@@ -114,6 +126,18 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
 
         job_queue = JobQueue()
         await job_queue.initialize()
+
+        # --- BEGIN: Idempotency Check ---
+        # Check the job status before starting any processing.
+        job = await job_queue.get_job(request_id)
+        if job is not None:
+            current_status = getattr(job, "status", None)
+            if current_status == JobStatus.COMPLETED:
+                logger.info(
+                    f"Job {request_id} is already completed. Skipping duplicate processing."
+                )
+                return {"status": "skipped_duplicate", "request_id": request_id}
+        # --- END: Idempotency Check ---
         
         audio_path = None  # Initialize to None for cleanup
 
@@ -292,6 +316,16 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
             logger.error(
                 f"Audio processing for job {request_id} failed: {e}", exc_info=True
             )
+            
+            # Check if this is the final retry attempt
+            if self.request.retries >= self.max_retries:
+                logger.error(
+                    f"Job {request_id} failed after {self.max_retries} retries. "
+                    "Consider moving to dead letter queue for manual review."
+                )
+                # Route to dead letter queue
+                route_to_dead_letter_queue(request_data, str(e))
+                
             if request_id:
                 await job_queue.update_job(
                     request_id, status=JobStatus.FAILED, error=str(e)
@@ -311,12 +345,41 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
 
         finally:
             # Cleanup temporary file - guaranteed to run regardless of success/failure
+            # Only clean up files that were created by this task (URL downloads or direct data uploads)
+            # and not files passed from the API endpoint to avoid deleting them twice.
             if audio_path is not None and audio_path.exists():
-                try:
-                    audio_path.unlink()
-                    logger.debug(f"Cleaned up temporary file: {audio_path}")
-                except Exception as cleanup_error:
-                    logger.warning(f"Failed to cleanup temporary file {audio_path}: {cleanup_error}")
+                should_cleanup = (
+                    audio_data is not None or  # File created from direct data upload
+                    request_data.get("audio_url") is not None  # File created from URL download
+                )
+                if should_cleanup:
+                    try:
+                        audio_path.unlink()
+                        logger.debug(f"Cleaned up temporary file: {audio_path}")
+                    except Exception as cleanup_error:
+                        logger.warning(f"Failed to cleanup temporary file {audio_path}: {cleanup_error}")
+                else:
+                    logger.debug(f"Skipping cleanup of file provided by API: {audio_path}")
 
     # Run the async function in a new event loop
     return asyncio.run(_process_audio_async())
+
+def route_to_dead_letter_queue(request_data: dict, error_message: str) -> None:
+    """
+    Route a failed task to the dead letter queue for manual processing.
+    
+    Args:
+        request_data: The original request data
+        error_message: The error message that caused the failure
+    """
+    logger.warning(
+        f"Routing job {request_data.get('request_id')} to dead letter queue: {error_message}"
+    )
+    
+    # Here you could implement logic to send the task to the dead letter queue
+    # For example, using Celery's apply_async with a specific queue
+    # process_audio_async.apply_async(
+    #     args=(request_data,),
+    #     queue='dead_letter',
+    #     retry=False
+    # )
