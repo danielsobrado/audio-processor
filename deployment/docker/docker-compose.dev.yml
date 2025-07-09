@@ -1,0 +1,143 @@
+version: '3.8'
+
+# Development docker-compose with hot reload and debugging features
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
+      target: development  # Use development stage with dev dependencies
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount source code for hot reload in development
+      - ../..:/app
+      # But exclude these directories to use container versions
+      - /app/.venv
+      - /app/__pycache__
+      - /app/.pytest_cache
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://audiouser:devpassword@postgres:5432/audio_processor_dev
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - KEYCLOAK_URL=http://localhost:8080
+      - KEYCLOAK_REALM=audio-processor
+      - KEYCLOAK_CLIENT_ID=dev-client
+      - KEYCLOAK_CLIENT_SECRET=dev-secret
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - SECRET_KEY=dev-secret-key-not-for-production
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+    networks:
+      - audio_processor_dev
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"  # Expose for development tools
+    environment:
+      - POSTGRES_USER=audiouser
+      - POSTGRES_PASSWORD=devpassword
+      - POSTGRES_DB=audio_processor_dev
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U audiouser -d audio_processor_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - audio_processor_dev
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"  # Expose for development tools
+    volumes:
+      - redis_dev_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - audio_processor_dev
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
+      target: development
+    volumes:
+      - ../..:/app
+      - /app/.venv
+      - /app/__pycache__
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://audiouser:devpassword@postgres:5432/audio_processor_dev
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+    command: celery -A app.workers.celery_app worker -l debug --concurrency=2
+    restart: unless-stopped
+    networks:
+      - audio_processor_dev
+
+  # Optional: Celery Flower for monitoring
+  flower:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
+      target: development
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/1
+    command: celery -A app.workers.celery_app flower --port=5555
+    restart: unless-stopped
+    networks:
+      - audio_processor_dev
+    profiles:
+      - monitoring
+
+  # Optional: Database admin interface
+  adminer:
+    image: adminer:latest
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - audio_processor_dev
+    profiles:
+      - admin
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+
+networks:
+  audio_processor_dev:
+    driver: bridge

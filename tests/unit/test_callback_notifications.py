@@ -2,10 +2,11 @@
 Unit tests for callback notification functionality.
 """
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-import httpx
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import httpx
+import pytest
 
 from app.workers.tasks import _send_callback_notification
 
@@ -21,28 +22,28 @@ class TestCallbackNotifications:
         request_id = "test-123"
         status = "completed"
         result = {"transcript": "Hello world", "confidence": 0.95}
-        
+
         mock_response = MagicMock()
         mock_response.is_success = True
         mock_response.status_code = 200
-        
+
         # Act & Assert
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_context = AsyncMock()
             mock_client.return_value.__aenter__.return_value = mock_context
             mock_context.post.return_value = mock_response
-            
+
             await _send_callback_notification(
                 callback_url=callback_url,
                 request_id=request_id,
                 status=status,
-                result=result
+                result=result,
             )
-            
+
             # Verify HTTP POST was called with correct parameters
             mock_context.post.assert_called_once()
             call_args = mock_context.post.call_args
-            
+
             assert call_args[1]["json"]["request_id"] == request_id
             assert call_args[1]["json"]["status"] == status
             assert call_args[1]["json"]["result"] == result
@@ -57,28 +58,28 @@ class TestCallbackNotifications:
         request_id = "test-456"
         status = "failed"
         error = "Audio file format not supported"
-        
+
         mock_response = MagicMock()
         mock_response.is_success = True
         mock_response.status_code = 200
-        
+
         # Act & Assert
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_context = AsyncMock()
             mock_client.return_value.__aenter__.return_value = mock_context
             mock_context.post.return_value = mock_response
-            
+
             await _send_callback_notification(
                 callback_url=callback_url,
                 request_id=request_id,
                 status=status,
-                error=error
+                error=error,
             )
-            
+
             # Verify HTTP POST was called with correct parameters
             mock_context.post.assert_called_once()
             call_args = mock_context.post.call_args
-            
+
             assert call_args[1]["json"]["request_id"] == request_id
             assert call_args[1]["json"]["status"] == status
             assert call_args[1]["json"]["error"] == error
@@ -89,14 +90,14 @@ class TestCallbackNotifications:
     async def test_send_callback_notification_empty_url(self):
         """Test that empty callback URL is handled gracefully."""
         # Act & Assert
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             await _send_callback_notification(
                 callback_url="",
                 request_id="test-789",
                 status="completed",
-                result={"transcript": "test"}
+                result={"transcript": "test"},
             )
-            
+
             # Verify no HTTP call was made
             mock_client.assert_not_called()
 
@@ -104,14 +105,14 @@ class TestCallbackNotifications:
     async def test_send_callback_notification_none_url(self):
         """Test that None callback URL is handled gracefully."""
         # Act & Assert
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             await _send_callback_notification(
                 callback_url=None,
                 request_id="test-000",
                 status="completed",
-                result={"transcript": "test"}
+                result={"transcript": "test"},
             )
-            
+
             # Verify no HTTP call was made
             mock_client.assert_not_called()
 
@@ -123,26 +124,26 @@ class TestCallbackNotifications:
         request_id = "test-error"
         status = "completed"
         result = {"transcript": "test"}
-        
+
         mock_response = MagicMock()
         mock_response.is_success = False
         mock_response.status_code = 500
         mock_response.text = "Internal Server Error"
-        
+
         # Act & Assert
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_context = AsyncMock()
             mock_client.return_value.__aenter__.return_value = mock_context
             mock_context.post.return_value = mock_response
-            
+
             # Should not raise exception despite HTTP error
             await _send_callback_notification(
                 callback_url=callback_url,
                 request_id=request_id,
                 status=status,
-                result=result
+                result=result,
             )
-            
+
             # Verify HTTP POST was attempted
             mock_context.post.assert_called_once()
 
@@ -154,21 +155,21 @@ class TestCallbackNotifications:
         request_id = "test-timeout"
         status = "completed"
         result = {"transcript": "test"}
-        
+
         # Act & Assert
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_context = AsyncMock()
             mock_client.return_value.__aenter__.return_value = mock_context
             mock_context.post.side_effect = httpx.TimeoutException("Request timed out")
-            
+
             # Should not raise exception despite timeout
             await _send_callback_notification(
                 callback_url=callback_url,
                 request_id=request_id,
                 status=status,
-                result=result
+                result=result,
             )
-            
+
             # Verify HTTP POST was attempted
             mock_context.post.assert_called_once()
 
@@ -180,21 +181,21 @@ class TestCallbackNotifications:
         request_id = "test-request-error"
         status = "completed"
         result = {"transcript": "test"}
-        
+
         # Act & Assert
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_context = AsyncMock()
             mock_client.return_value.__aenter__.return_value = mock_context
             mock_context.post.side_effect = httpx.RequestError("Connection failed")
-            
+
             # Should not raise exception despite request error
             await _send_callback_notification(
                 callback_url=callback_url,
                 request_id=request_id,
                 status=status,
-                result=result
+                result=result,
             )
-            
+
             # Verify HTTP POST was attempted
             mock_context.post.assert_called_once()
 
@@ -206,21 +207,21 @@ class TestCallbackNotifications:
         request_id = "test-unexpected"
         status = "completed"
         result = {"transcript": "test"}
-        
+
         # Act & Assert
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_context = AsyncMock()
             mock_client.return_value.__aenter__.return_value = mock_context
             mock_context.post.side_effect = Exception("Unexpected error")
-            
+
             # Should not raise exception despite unexpected error
             await _send_callback_notification(
                 callback_url=callback_url,
                 request_id=request_id,
                 status=status,
-                result=result
+                result=result,
             )
-            
+
             # Verify HTTP POST was attempted
             mock_context.post.assert_called_once()
 
@@ -233,46 +234,47 @@ class TestCallbackNotifications:
         status = "completed"
         result = {
             "results": {
-                "channels": [{
-                    "alternatives": [{
-                        "transcript": "Hello world",
-                        "confidence": 0.95
-                    }]
-                }]
+                "channels": [
+                    {
+                        "alternatives": [
+                            {"transcript": "Hello world", "confidence": 0.95}
+                        ]
+                    }
+                ]
             },
             "metadata": {
                 "request_id": request_id,
-                "model_info": {"name": "whisper-large-v2"}
-            }
+                "model_info": {"name": "whisper-large-v2"},
+            },
         }
-        
+
         mock_response = MagicMock()
         mock_response.is_success = True
         mock_response.status_code = 200
-        
+
         # Act & Assert
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_context = AsyncMock()
             mock_client.return_value.__aenter__.return_value = mock_context
             mock_context.post.return_value = mock_response
-            
+
             await _send_callback_notification(
                 callback_url=callback_url,
                 request_id=request_id,
                 status=status,
-                result=result
+                result=result,
             )
-            
+
             # Verify payload structure
             call_args = mock_context.post.call_args
             payload = call_args[1]["json"]
-            
+
             assert payload["request_id"] == request_id
             assert payload["status"] == status
             assert payload["result"] == result
             assert "timestamp" in payload
             assert "error" not in payload
-            
+
             # Verify timestamp format
             timestamp = payload["timestamp"]
             assert timestamp.endswith("Z") or "+" in timestamp  # ISO format
@@ -285,28 +287,28 @@ class TestCallbackNotifications:
         request_id = "test-failed-payload"
         status = "failed"
         error = "Audio file format not supported: invalid codec"
-        
+
         mock_response = MagicMock()
         mock_response.is_success = True
         mock_response.status_code = 200
-        
+
         # Act & Assert
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_context = AsyncMock()
             mock_client.return_value.__aenter__.return_value = mock_context
             mock_context.post.return_value = mock_response
-            
+
             await _send_callback_notification(
                 callback_url=callback_url,
                 request_id=request_id,
                 status=status,
-                error=error
+                error=error,
             )
-            
+
             # Verify payload structure
             call_args = mock_context.post.call_args
             payload = call_args[1]["json"]
-            
+
             assert payload["request_id"] == request_id
             assert payload["status"] == status
             assert payload["error"] == error
@@ -321,27 +323,27 @@ class TestCallbackNotifications:
         request_id = "test-config"
         status = "completed"
         result = {"transcript": "test"}
-        
+
         mock_response = MagicMock()
         mock_response.is_success = True
         mock_response.status_code = 200
-        
+
         # Act & Assert
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_context = AsyncMock()
             mock_client.return_value.__aenter__.return_value = mock_context
             mock_context.post.return_value = mock_response
-            
+
             await _send_callback_notification(
                 callback_url=callback_url,
                 request_id=request_id,
                 status=status,
-                result=result
+                result=result,
             )
-            
+
             # Verify HTTP client configuration
             mock_client.assert_called_once_with(timeout=30.0)
-            
+
             # Verify POST request configuration
             call_args = mock_context.post.call_args
             assert call_args[0][0] == callback_url  # URL

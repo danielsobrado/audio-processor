@@ -20,21 +20,21 @@ settings = get_settings()
 async def validate_audio_file(file: UploadFile) -> None:
     """
     Validate uploaded audio file.
-    
+
     Args:
         file: Uploaded audio file.
-    
+
     Raises:
         HTTPException: If file is invalid.
     """
-    
+
     # Check file size
     if file.size is None or file.size > settings.max_file_size:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"File size exceeds limit of {settings.max_file_size / 1024 / 1024:.2f} MB",
         )
-    
+
     # Check content type
     supported_formats = settings.supported_formats
     if isinstance(supported_formats, str):
@@ -50,29 +50,29 @@ async def validate_audio_file(file: UploadFile) -> None:
 async def save_temp_audio_file(file: UploadFile) -> Path:
     """
     Save uploaded audio file to a temporary location.
-    
+
     Args:
         file: Uploaded audio file.
-    
+
     Returns:
         Path to the temporary file.
     """
-    
+
     temp_dir = Path(settings.temp_dir)
     temp_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Secure filename handling to prevent path traversal attacks
     safe_filename = f"{uuid.uuid4()}_{os.path.basename(file.filename or 'audio_file')}"
     temp_path = temp_dir / safe_filename
-    
+
     try:
         async with aiofiles.open(temp_path, "wb") as temp_file:
             while chunk := await file.read(1024 * 1024):  # Read in 1MB chunks
                 await temp_file.write(chunk)
-        
+
         logger.info(f"Saved temporary audio file: {temp_path}")
         return temp_path
-        
+
     except Exception as e:
         logger.error(f"Failed to save temporary file: {e}", exc_info=True)
         raise HTTPException(
@@ -90,7 +90,7 @@ async def convert_audio_format(
 ) -> None:
     """
     Convert audio file to a different format using pydub.
-    
+
     Args:
         input_path: Path to the input audio file.
         output_path: Path to save the converted audio file.
@@ -98,22 +98,22 @@ async def convert_audio_format(
         sample_rate: Target sample rate.
         channels: Target number of channels.
     """
-    
+
     try:
         from pydub import AudioSegment
-        
+
         # Load audio file
         audio = AudioSegment.from_file(input_path)
-        
+
         # Set channels and sample rate
         audio = audio.set_channels(channels)
         audio = audio.set_frame_rate(sample_rate)
-        
+
         # Export to target format
         audio.export(output_path, format=target_format)
-        
+
         logger.info(f"Converted {input_path} to {output_path} ({target_format})")
-        
+
     except ImportError:
         logger.error("pydub is not installed. Please install it for audio conversion.")
         raise
@@ -125,20 +125,20 @@ async def convert_audio_format(
 def get_audio_duration(audio_path: Path) -> float:
     """
     Get the duration of an audio file in seconds.
-    
+
     Args:
         audio_path: Path to the audio file.
-    
+
     Returns:
         Duration in seconds.
     """
-    
+
     try:
         from pydub import AudioSegment
-        
+
         audio = AudioSegment.from_file(audio_path)
         return len(audio) / 1000.0  # Duration in seconds
-        
+
     except ImportError:
         logger.error("pydub is not installed. Please install it to get audio duration.")
         return 0.0

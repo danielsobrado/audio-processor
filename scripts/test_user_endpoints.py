@@ -9,19 +9,18 @@ import json
 import sys
 from datetime import datetime, timedelta
 
+
 # Mock JWT creation for testing (in production, this comes from Keycloak)
 def create_mock_jwt_payload(user_id: str, email: str, username: str, roles=None):
     """Create a mock JWT payload for testing."""
     if roles is None:
         roles = ["user"]
-    
+
     return {
         "sub": user_id,
         "email": email,
         "preferred_username": username,
-        "realm_access": {
-            "roles": roles
-        },
+        "realm_access": {"roles": roles},
         "iss": "https://your-keycloak-domain.com",
         "aud": "audio-processor-api",
         "exp": int((datetime.utcnow() + timedelta(hours=1)).timestamp()),
@@ -31,7 +30,7 @@ def create_mock_jwt_payload(user_id: str, email: str, username: str, roles=None)
 
 def test_scenarios():
     """Define test scenarios for the user endpoints."""
-    
+
     scenarios = [
         {
             "name": "New User - First Time Access",
@@ -40,13 +39,13 @@ def test_scenarios():
                 "user_id": "auth0|507f1f77bcf86cd799439011",
                 "email": "newuser@example.com",
                 "username": "New User",
-                "roles": ["user"]
+                "roles": ["user"],
             },
             "expected": {
                 "should_create_user": True,
                 "response_code": 200,
-                "has_profile": True
-            }
+                "has_profile": True,
+            },
         },
         {
             "name": "Existing User - Return Visit",
@@ -55,13 +54,13 @@ def test_scenarios():
                 "user_id": "auth0|507f1f77bcf86cd799439012",
                 "email": "existing@example.com",
                 "username": "Existing User",
-                "roles": ["user"]
+                "roles": ["user"],
             },
             "expected": {
                 "should_create_user": False,
                 "response_code": 200,
-                "has_profile": True
-            }
+                "has_profile": True,
+            },
         },
         {
             "name": "Admin User - Role-Based Access",
@@ -70,14 +69,14 @@ def test_scenarios():
                 "user_id": "auth0|507f1f77bcf86cd799439013",
                 "email": "admin@example.com",
                 "username": "Admin User",
-                "roles": ["user", "admin"]
+                "roles": ["user", "admin"],
             },
             "expected": {
                 "should_create_user": True,
                 "response_code": 200,
                 "has_profile": True,
-                "can_list_users": True
-            }
+                "can_list_users": True,
+            },
         },
         {
             "name": "Profile Update - JIT Creation",
@@ -86,49 +85,46 @@ def test_scenarios():
                 "user_id": "auth0|507f1f77bcf86cd799439014",
                 "email": "updateuser@example.com",
                 "username": "Update User",
-                "roles": ["user"]
+                "roles": ["user"],
             },
-            "update_data": {
-                "full_name": "Updated Full Name",
-                "is_active": True
-            },
+            "update_data": {"full_name": "Updated Full Name", "is_active": True},
             "expected": {
                 "should_create_user": True,
                 "response_code": 200,
-                "updated_name": "Updated Full Name"
-            }
-        }
+                "updated_name": "Updated Full Name",
+            },
+        },
     ]
-    
+
     return scenarios
 
 
 def print_test_curl_commands():
     """Print curl commands for manual testing."""
-    
+
     print("=== Manual Testing with curl ===\n")
-    
+
     print("Note: Replace <JWT_TOKEN> with actual JWT token from Keycloak\n")
-    
+
     commands = [
         {
             "name": "Get Current User Profile",
-            "command": 'curl -X GET "http://localhost:8000/api/v1/users/me" \\\n  -H "Authorization: Bearer <JWT_TOKEN>" \\\n  -H "Content-Type: application/json"'
+            "command": 'curl -X GET "http://localhost:8000/api/v1/users/me" \\\n  -H "Authorization: Bearer <JWT_TOKEN>" \\\n  -H "Content-Type: application/json"',
         },
         {
             "name": "Update Current User Profile",
-            "command": 'curl -X PUT "http://localhost:8000/api/v1/users/me" \\\n  -H "Authorization: Bearer <JWT_TOKEN>" \\\n  -H "Content-Type: application/json" \\\n  -d \'{"full_name": "Updated Name", "is_active": true}\''
+            "command": 'curl -X PUT "http://localhost:8000/api/v1/users/me" \\\n  -H "Authorization: Bearer <JWT_TOKEN>" \\\n  -H "Content-Type: application/json" \\\n  -d \'{"full_name": "Updated Name", "is_active": true}\'',
         },
         {
             "name": "List All Users (Admin Only)",
-            "command": 'curl -X GET "http://localhost:8000/api/v1/users/" \\\n  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>" \\\n  -H "Content-Type: application/json"'
+            "command": 'curl -X GET "http://localhost:8000/api/v1/users/" \\\n  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>" \\\n  -H "Content-Type: application/json"',
         },
         {
             "name": "Create New User (Public)",
-            "command": 'curl -X POST "http://localhost:8000/api/v1/users/" \\\n  -H "Content-Type: application/json" \\\n  -d \'{"email": "newuser@example.com", "password": "securepass123", "full_name": "New User"}\''
-        }
+            "command": 'curl -X POST "http://localhost:8000/api/v1/users/" \\\n  -H "Content-Type: application/json" \\\n  -d \'{"email": "newuser@example.com", "password": "securepass123", "full_name": "New User"}\'',
+        },
     ]
-    
+
     for cmd in commands:
         print(f"## {cmd['name']}")
         print(f"```bash\n{cmd['command']}\n```\n")
@@ -136,9 +132,9 @@ def print_test_curl_commands():
 
 def print_jwt_example():
     """Print example JWT tokens for testing."""
-    
+
     print("=== Example JWT Payloads ===\n")
-    
+
     examples = [
         {
             "name": "Regular User",
@@ -146,8 +142,8 @@ def print_jwt_example():
                 "auth0|507f1f77bcf86cd799439011",
                 "user@example.com",
                 "Regular User",
-                ["user"]
-            )
+                ["user"],
+            ),
         },
         {
             "name": "Admin User",
@@ -155,8 +151,8 @@ def print_jwt_example():
                 "auth0|507f1f77bcf86cd799439012",
                 "admin@example.com",
                 "Admin User",
-                ["user", "admin"]
-            )
+                ["user", "admin"],
+            ),
         },
         {
             "name": "Premium User",
@@ -164,49 +160,49 @@ def print_jwt_example():
                 "auth0|507f1f77bcf86cd799439013",
                 "premium@example.com",
                 "Premium User",
-                ["user", "premium"]
-            )
-        }
+                ["user", "premium"],
+            ),
+        },
     ]
-    
+
     for example in examples:
         print(f"## {example['name']}")
         print("```json")
-        print(json.dumps(example['payload'], indent=2))
+        print(json.dumps(example["payload"], indent=2))
         print("```\n")
 
 
 def print_test_scenarios():
     """Print detailed test scenarios."""
-    
+
     print("=== Test Scenarios ===\n")
-    
+
     scenarios = test_scenarios()
-    
+
     for i, scenario in enumerate(scenarios, 1):
         print(f"## Scenario {i}: {scenario['name']}")
         print(f"**Description**: {scenario['description']}\n")
-        
+
         print("**User Data**:")
         print(f"- Email: {scenario['user']['email']}")
         print(f"- Username: {scenario['user']['username']}")
         print(f"- Roles: {scenario['user']['roles']}\n")
-        
+
         print("**Expected Behavior**:")
-        for key, value in scenario['expected'].items():
+        for key, value in scenario["expected"].items():
             print(f"- {key.replace('_', ' ').title()}: {value}")
-        
-        if 'update_data' in scenario:
+
+        if "update_data" in scenario:
             print(f"\n**Update Data**: {scenario['update_data']}")
-        
+
         print("\n" + "-" * 50 + "\n")
 
 
 def print_validation_checklist():
     """Print validation checklist for manual testing."""
-    
+
     print("=== Validation Checklist ===\n")
-    
+
     checklist = [
         "□ JWT token validation works correctly",
         "□ New users are created automatically on first access",
@@ -219,39 +215,39 @@ def print_validation_checklist():
         "□ Logging captures JIT provisioning events",
         "□ Performance is acceptable under load",
         "□ Security headers are present in responses",
-        "□ API documentation is accurate and complete"
+        "□ API documentation is accurate and complete",
     ]
-    
+
     print("Check off each item as you validate the functionality:\n")
     for item in checklist:
         print(item)
-    
+
     print("\n")
 
 
 def main():
     """Main function to run the test guide."""
-    
+
     if len(sys.argv) > 1:
         action = sys.argv[1].lower()
     else:
         action = "all"
-    
+
     print("User Profile Endpoints Test Guide")
     print("=" * 40 + "\n")
-    
+
     if action in ["all", "scenarios"]:
         print_test_scenarios()
-    
+
     if action in ["all", "curl"]:
         print_test_curl_commands()
-    
+
     if action in ["all", "jwt"]:
         print_jwt_example()
-    
+
     if action in ["all", "checklist"]:
         print_validation_checklist()
-    
+
     if action not in ["scenarios", "curl", "jwt", "checklist", "all"]:
         print("Usage: python test_user_endpoints.py [scenarios|curl|jwt|checklist|all]")
         print("\nOptions:")

@@ -1,12 +1,15 @@
 import logging
+
 from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 
+
 class AudioProcessingError(Exception):
     """Custom exception for audio processing errors."""
+
     pass
 
 
@@ -30,7 +33,9 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
     )
 
 
-async def audio_processing_exception_handler(request: Request, exc: AudioProcessingError):
+async def audio_processing_exception_handler(
+    request: Request, exc: AudioProcessingError
+):
     """
     Handle audio processing errors.
     """

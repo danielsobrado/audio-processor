@@ -1,6 +1,7 @@
 """
 API endpoints for user management.
 """
+
 import logging
 from datetime import datetime
 from typing import List
@@ -32,22 +33,24 @@ async def create_user(
     try:
         # Import here to avoid circular imports
         from app.db import crud
-        
+
         db_user = await crud.user.get_by_email(db, email=user_in.email)
         if db_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="An account with this email already exists.",
             )
-        
+
         hashed_password = get_password_hash(user_in.password)
-        created_user = await crud.user.create(db, obj_in=user_in, hashed_password=hashed_password)
+        created_user = await crud.user.create(
+            db, obj_in=user_in, hashed_password=hashed_password
+        )
         return created_user
     except ImportError:
         logger.error("CRUD module not available - user creation disabled")
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="User management not implemented yet"
+            detail="User management not implemented yet",
         )
 
 
@@ -59,7 +62,7 @@ async def create_user(
 )
 async def read_current_user(
     db: AsyncSession = Depends(get_async_session),
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     """
     Returns the profile of the currently authenticated user.
@@ -69,14 +72,16 @@ async def read_current_user(
     try:
         # Import here to avoid circular imports
         from app.db import crud
-        
+
         # Look for the user in our local database by email from the token
         db_user = await crud.user.get_by_email(db, email=current_user.email)
 
         if not db_user:
             # User is authenticated but doesn't have a local profile yet.
             # Create one now (JIT Provisioning).
-            logger.info(f"User '{current_user.email}' not found locally. Provisioning new user.")
+            logger.info(
+                f"User '{current_user.email}' not found locally. Provisioning new user."
+            )
             db_user = await crud.user.create_from_token(db, token_data=current_user)
 
         return db_user
@@ -90,7 +95,7 @@ async def read_current_user(
             full_name=current_user.username,
             is_active=True,
             created_at=mock_datetime,
-            updated_at=mock_datetime
+            updated_at=mock_datetime,
         )
 
 
@@ -103,26 +108,28 @@ async def read_current_user(
 async def update_current_user(
     user_in: UserUpdateRequest,
     db: AsyncSession = Depends(get_async_session),
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     """Update the current user's full name or active status."""
     try:
         # Import here to avoid circular imports
         from app.db import crud
-        
+
         # Get current user from database or create if not exists (JIT Provisioning)
         db_user = await crud.user.get_by_email(db, email=current_user.email)
         if not db_user:
-            logger.info(f"User '{current_user.email}' not found locally. Provisioning new user for update.")
+            logger.info(
+                f"User '{current_user.email}' not found locally. Provisioning new user for update."
+            )
             db_user = await crud.user.create_from_token(db, token_data=current_user)
-        
+
         updated_user = await crud.user.update(db, db_obj=db_user, obj_in=user_in)
         return updated_user
     except ImportError:
         logger.error("CRUD module not available - user update disabled")
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="User management not implemented yet"
+            detail="User management not implemented yet",
         )
 
 
@@ -141,12 +148,12 @@ async def list_users(
     try:
         # Import here to avoid circular imports
         from app.db import crud
-        
+
         users = await crud.user.get_multi(db, skip=skip, limit=limit)
         return users
     except ImportError:
         logger.error("CRUD module not available - user listing disabled")
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="User management not implemented yet"
+            detail="User management not implemented yet",
         )

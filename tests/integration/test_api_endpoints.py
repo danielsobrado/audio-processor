@@ -3,10 +3,10 @@ Integration tests for the API endpoints.
 """
 
 import pytest
+from fastapi import FastAPI
 from httpx import AsyncClient
 
 from app.main import app
-from fastapi import FastAPI
 
 
 @pytest.mark.asyncio
@@ -41,15 +41,13 @@ async def test_transcribe_endpoint_requires_auth(app: FastAPI):
         assert response.status_code in [401, 422]
 
 
-@pytest.mark.asyncio 
+@pytest.mark.asyncio
 async def test_app_uses_test_settings(test_settings):
     """Test that the application is using test configuration."""
     assert test_settings.environment == "testing"
     assert test_settings.debug is True
     assert "test" in test_settings.database.database_url.lower()
     assert "15" in test_settings.redis.redis_url  # Test Redis DB
-
-
 
 
 # TODO: Add more comprehensive integration tests for transcribe, status, and results endpoints.

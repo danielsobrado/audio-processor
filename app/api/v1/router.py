@@ -4,7 +4,15 @@ API router for version 1 of the audio processing microservice.
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import admin, graph, health, results, status, transcribe, users
+from app.api.v1.endpoints import (
+    admin,
+    graph,
+    health,
+    results,
+    status,
+    transcribe,
+    users,
+)
 
 api_router = APIRouter()
 
