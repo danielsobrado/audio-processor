@@ -46,7 +46,7 @@ class TranscriptionService:
                 request_id=request.request_id,
                 user_id=request.user_id,
                 job_type="transcription",
-                parameters=request.dict(),
+                parameters=request.model_dump(),
             )
 
             # Read audio data if a file is provided
@@ -54,7 +54,7 @@ class TranscriptionService:
 
             # Submit the job to Celery
             task = process_audio_async.delay(
-                request_data=request.dict(),
+                request_data=request.model_dump(),
                 audio_data=audio_data,
             )
 

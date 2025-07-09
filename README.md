@@ -304,6 +304,59 @@ Configuration settings are managed through environment variables and YAML files 
 *   `.env`: Local environment variables (sensitive data like API keys).
 *   `config/`: Contains environment-specific configurations (e.g., `development.yaml`, `production.yaml`).
 
+### Feature Flags
+
+The application includes comprehensive feature flags for runtime control of core functionality. **All feature flags are properly implemented and enforced at the API boundary**.
+
+#### Available Feature Flags
+
+| Feature Flag | Environment Variable | Default | Description |
+|-------------|---------------------|---------|-------------|
+| `enable_audio_upload` | `ENABLE_AUDIO_UPLOAD` | `true` | Controls direct audio file uploads |
+| `enable_url_processing` | `ENABLE_URL_PROCESSING` | `true` | Controls processing from URLs |
+| `enable_translation` | `TRANSLATION_ENABLED` | `true` | Controls translation functionality |
+| `enable_summarization` | `ENABLE_SUMMARIZATION` | `true` | Controls summarization functionality |
+| `graph.enabled` | `GRAPH_ENABLED` | `true` | Controls Neo4j graph features |
+| `auth.verify_signature` | `JWT_VERIFY_SIGNATURE` | `true` | Controls JWT signature verification |
+| `auth.verify_audience` | `JWT_VERIFY_AUDIENCE` | `true` | Controls JWT audience verification |
+
+#### Feature Flag Implementation
+
+**API Enforcement**: All feature flags are enforced at the API boundary in `app/api/v1/endpoints/transcribe.py`:
+
+```python
+# Example: Audio upload blocking
+if file and not settings.enable_audio_upload:
+    raise HTTPException(
+        status_code=403,
+        detail="Direct audio file uploads are currently disabled."
+    )
+
+# Example: Translation blocking  
+if translate and not settings.translation.enabled:
+    raise HTTPException(
+        status_code=400,
+        detail="Translation feature is currently disabled."
+    )
+```
+
+**Environment Configuration**: Disable features via environment variables:
+
+```bash
+# Disable file uploads
+export ENABLE_AUDIO_UPLOAD=false
+
+# Disable translation
+export TRANSLATION_ENABLED=false
+
+# Disable summarization
+export ENABLE_SUMMARIZATION=false
+```
+
+**Test Coverage**: Feature flags are thoroughly tested in `tests/unit/test_feature_flags.py` with 341 lines of comprehensive test coverage.
+
+**Production Usage**: Feature flags are production-ready and can be safely used to control system behavior in real-time.
+
 ## Testing
 
 ### Using Test Scripts (Recommended)

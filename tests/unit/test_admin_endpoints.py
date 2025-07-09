@@ -41,6 +41,9 @@ class TestAdminJobManagement:
         mock_job.task_id = "celery-task-123"
         mock_job.job_type = "transcription"
         mock_job.parameters = {"language": "auto"}
+        # Additional fields that might be accessed
+        mock_job.transcription_result = None
+        mock_job.error_message = None
 
         # Mock query results
         mock_result = MagicMock()
@@ -225,6 +228,9 @@ class TestAdminJobManagement:
         mock_job.task_id = "active-task-123"
         mock_job.job_type = "transcription"
         mock_job.parameters = {"language": "en", "diarize": True}
+        # Additional fields that might be accessed
+        mock_job.transcription_result = None
+        mock_job.error_message = None
 
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_job
