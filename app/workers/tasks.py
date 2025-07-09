@@ -114,6 +114,8 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
 
         job_queue = JobQueue()
         await job_queue.initialize()
+        
+        audio_path = None  # Initialize to None for cleanup
 
         try:
             logger.info(f"Starting audio processing for job {request_id}")
@@ -161,9 +163,6 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
                         logger.info(f"Successfully downloaded audio to {audio_path}")
                     except Exception as e:
                         logger.error(f"Failed to download audio from {audio_url}: {e}")
-                        # Clean up the failed download
-                        if audio_path.exists():
-                            audio_path.unlink()
                         raise ValueError(
                             f"Could not download or process audio from URL: {e}"
                         )
@@ -287,10 +286,6 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
                     result=deepgram_result,
                 )
 
-            # Cleanup temporary file for both file uploads and URL downloads
-            if (audio_data or request_data.get("audio_url")) and audio_path.exists():
-                audio_path.unlink()
-
             return {"status": "completed", "request_id": request_id}
 
         except Exception as e:
@@ -312,12 +307,16 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
                         error=str(e),
                     )
 
-            # Cleanup temporary file in case of failure for both uploads and
-            # URL downloads
-            if "audio_path" in locals() and audio_path.exists():
-                audio_path.unlink()
-
             raise
+
+        finally:
+            # Cleanup temporary file - guaranteed to run regardless of success/failure
+            if audio_path is not None and audio_path.exists():
+                try:
+                    audio_path.unlink()
+                    logger.debug(f"Cleaned up temporary file: {audio_path}")
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to cleanup temporary file {audio_path}: {cleanup_error}")
 
     # Run the async function in a new event loop
     return asyncio.run(_process_audio_async())

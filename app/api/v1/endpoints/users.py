@@ -86,16 +86,10 @@ async def read_current_user(
 
         return db_user
     except ImportError:
-        logger.error("CRUD module not available - returning mock data")
-        # Fallback to mock data if CRUD is not available
-        mock_datetime = datetime(2024, 1, 1)
-        return UserResponse(
-            id=hash(current_user.user_id) % 1000000,  # Mock ID
-            email=current_user.email or "user@example.com",
-            full_name=current_user.username,
-            is_active=True,
-            created_at=mock_datetime,
-            updated_at=mock_datetime,
+        logger.error("CRUD module not available - database configuration error")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database configuration error - unable to process user data",
         )
 
 
