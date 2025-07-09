@@ -50,7 +50,6 @@ def create_celery_app() -> Celery:
         timezone=settings.celery.timezone,
         enable_utc=settings.celery.enable_utc,
         worker_concurrency=settings.celery.worker_concurrency,
-        # --- BEGIN: Reliability Settings ---
         # Acknowledge task only after it has been successfully executed.
         # This prevents losing tasks if a worker crashes mid-execution.
         task_acks_late=True,
@@ -64,7 +63,6 @@ def create_celery_app() -> Celery:
         task_default_queue='default',
         task_default_exchange='tasks',
         task_default_routing_key='task.default',
-        # --- END: Reliability Settings ---
     )
 
     celery_app.autodiscover_tasks(["app.workers"])

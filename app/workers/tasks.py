@@ -11,15 +11,20 @@ from typing import Any, Dict, Optional
 
 import httpx
 
-from app.core.deepgram_formatter import DeepgramFormatter
+# --- BEGIN: Import Strategies ---
+from app.core.processing_strategies import (
+    FormattingStrategy,
+    GraphProcessingStrategy,
+    ProcessingContext,
+    SummarizationStrategy,
+    TranscriptionStrategy,
+    TranslationStrategy,
+)
+# --- END: Import Strategies ---
+
 from app.core.job_queue import JobQueue
 from app.schemas.database import JobStatus
-from app.services.summarization import SummarizationService
-from app.workers.celery_app import (
-    audio_processor_instance,
-    celery_app,
-    translation_service_instance,
-)
+from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
@@ -110,8 +115,8 @@ async def _send_callback_notification(
 # --- END: Update Task Decorator for Retries ---
 def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = None):
     """
-    Celery task to process audio files (sync wrapper for async operations).
-
+    Celery task to process audio files using a strategy-based pipeline.
+    
     Args:
         request_data: Dictionary containing transcription request details.
         audio_data: Raw audio data for file-based uploads.
@@ -144,242 +149,94 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
         try:
             logger.info(f"Starting audio processing for job {request_id}")
 
-            # Update job status to processing
-            await job_queue.update_job(
-                request_id, status=JobStatus.PROCESSING, progress=10.0
-            )
-
-            # Use the pre-initialized global AudioProcessor instance
-            if audio_processor_instance is None:
-                raise RuntimeError(
-                    "AudioProcessor not initialized. Worker may not have started properly."
-                )
-
-            # Handle audio source (file path, URL, or uploaded data)
+            # --- BEGIN: Audio Source Handling ---
             if request_data.get("audio_file_path"):
-                # File was saved to temp location by API endpoint
                 audio_path = Path(request_data["audio_file_path"])
             elif audio_data:
-                # Fallback for direct data upload (less efficient)
-                with tempfile.NamedTemporaryFile(
-                    delete=False, suffix=".wav"
-                ) as temp_file:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
                     temp_file.write(audio_data)
                     audio_path = Path(temp_file.name)
             elif request_data.get("audio_url"):
-                # Download audio from URL
                 audio_url = request_data["audio_url"]
-                logger.info(f"Downloading audio from URL: {audio_url}")
-
-                # Use a temporary file to stream the download, avoiding memory issues
-                with tempfile.NamedTemporaryFile(
-                    delete=False, suffix=".tmp"
-                ) as temp_file:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".tmp") as temp_file:
                     audio_path = Path(temp_file.name)
-                    try:
-                        async with httpx.AsyncClient(timeout=60.0) as client:
-                            async with client.stream(
-                                "GET", audio_url, follow_redirects=True
-                            ) as response:
-                                response.raise_for_status()
-                                async for chunk in response.aiter_bytes():
-                                    temp_file.write(chunk)
-                        logger.info(f"Successfully downloaded audio to {audio_path}")
-                    except Exception as e:
-                        logger.error(f"Failed to download audio from {audio_url}: {e}")
-                        raise ValueError(
-                            f"Could not download or process audio from URL: {e}"
-                        )
+                    async with httpx.AsyncClient(timeout=60.0) as client:
+                        async with client.stream("GET", audio_url, follow_redirects=True) as response:
+                            response.raise_for_status()
+                            async for chunk in response.aiter_bytes():
+                                temp_file.write(chunk)
             else:
-                raise ValueError("No audio data, file path, or URL provided")
+                raise ValueError("No audio source provided.")
+            # --- END: Audio Source Handling ---
 
-            await job_queue.update_job(request_id, progress=30.0)
+            await job_queue.update_job(request_id, status=JobStatus.PROCESSING, progress=10.0)
 
-            # Process audio using the global instance
-            processing_result_coroutine = audio_processor_instance.process_audio(
-                audio_path=audio_path,
-                language=request_data.get("language", "auto"),
-                diarize=request_data.get("diarize", True),
-            )
-            processing_result = await processing_result_coroutine
-
-            await job_queue.update_job(request_id, progress=70.0)
-
-            # Format results
-            formatter = DeepgramFormatter()
-            deepgram_result = formatter.format_transcription_result(
-                whisperx_result=processing_result,
-                request_id=request_id,
-                model_name=request_data.get("model", "large-v2"),
-                audio_duration=processing_result.get("duration"),
-                punctuate=request_data.get("punctuate", True),
-                diarize=request_data.get("diarize", True),
-                smart_format=request_data.get("smart_format", True),
-                utterances=request_data.get("utterances", True),
-            )
-
-            await job_queue.update_job(request_id, progress=90.0)
-
-            # Summarization
+            # --- BEGIN: Strategy Pipeline ---
+            context = ProcessingContext(request_data, audio_path)
+            
+            # 1. Build the pipeline of strategies based on request
+            pipeline = [TranscriptionStrategy(), FormattingStrategy()]
             if request_data.get("summarize"):
-                summarization_service = SummarizationService()
-                summary = await summarization_service.summarize_text(
-                    deepgram_result["results"]["channels"][0]["alternatives"][0][
-                        "transcript"
-                    ]
-                )
-                formatter.add_summary_data(deepgram_result, summary)
-
-            # Translation
-            if request_data.get("translate") and translation_service_instance:
-                transcript_to_translate = deepgram_result["results"]["channels"][0][
-                    "alternatives"
-                ][0]["transcript"]
-                target_lang = request_data.get("target_language")
-                source_lang = request_data.get(
-                    "language", "en"
-                )  # Use detected language as source
-
-                if target_lang:
-                    logger.info(f"Translating transcript to '{target_lang}'...")
-                    translated_text = await translation_service_instance.translate_text(
-                        text=transcript_to_translate,
-                        target_language=target_lang,
-                        source_language=source_lang,
-                    )
-                    # Use a dictionary for the `add_translation_data` method
-                    translations = {target_lang: translated_text}
-                    formatter.add_translation_data(deepgram_result, translations)
-                else:
-                    logger.warning(
-                        "Translation requested but no target_language specified. Skipping."
-                    )
-
-            # Graph processing
+                pipeline.append(SummarizationStrategy())
+            if request_data.get("translate"):
+                pipeline.append(TranslationStrategy())
+            
+            # Graph processing can run in parallel or at the end
             if request_data.get("enable_graph_processing", True):
-                try:
-                    from app.core.graph_processor import graph_processor
+                pipeline.append(GraphProcessingStrategy())
 
-                    # Prepare graph data from the processing result
-                    graph_data = {
-                        "job_id": request_id,
-                        "audio_file_id": request_data.get("audio_file_id", request_id),
-                        "language": request_data.get("language", "auto"),
-                        "segments": processing_result.get("segments", []),
-                    }
+            # 2. Execute the pipeline
+            for i, strategy in enumerate(pipeline):
+                if context.is_failed():
+                    break
+                context = await strategy.process(context)
+                # Update progress based on pipeline completion
+                progress = 10.0 + (80.0 * (i + 1) / len(pipeline))
+                await job_queue.update_job(request_id, progress=progress)
 
-                    # Process graph asynchronously
-                    graph_result = await graph_processor.process_transcription_result(
-                        graph_data
-                    )
-
-                    # Add graph processing result to the final result
-                    if "metadata" not in deepgram_result:
-                        deepgram_result["metadata"] = {}
-                    deepgram_result["metadata"]["graph_processing"] = graph_result
-
-                    logger.info(f"Graph processing completed for job {request_id}")
-
-                except Exception as e:
-                    logger.warning(f"Graph processing failed for job {request_id}: {e}")
-                    # Don't fail the entire job if graph processing fails
-                    if "metadata" not in deepgram_result:
-                        deepgram_result["metadata"] = {}
-                    deepgram_result["metadata"]["graph_processing"] = {
-                        "success": False,
-                        "error": str(e),
-                    }
+            # 3. Check for errors from the pipeline
+            if context.is_failed():
+                raise context.error if context.error else RuntimeError("Unknown processing error")
+            # --- END: Strategy Pipeline ---
 
             # Store final result
             await job_queue.update_job(
                 request_id,
                 status=JobStatus.COMPLETED,
                 progress=100.0,
-                result=deepgram_result,
+                result=context.deepgram_result,
             )
+            logger.info(f"Job {request_id} completed successfully.")
 
-            logger.info(f"Audio processing for job {request_id} completed successfully")
-
-            # Send callback notification if URL provided
-            callback_url = request_data.get("callback_url")
-            if callback_url:
+            # Send callback notification
+            if request_data.get("callback_url"):
                 await _send_callback_notification(
-                    callback_url=callback_url,
+                    callback_url=request_data["callback_url"],
                     request_id=request_id,
                     status="completed",
-                    result=deepgram_result,
+                    result=context.deepgram_result,
                 )
-
+            
             return {"status": "completed", "request_id": request_id}
 
         except Exception as e:
-            logger.error(
-                f"Audio processing for job {request_id} failed: {e}", exc_info=True
-            )
-            
-            # Check if this is the final retry attempt
-            if self.request.retries >= self.max_retries:
-                logger.error(
-                    f"Job {request_id} failed after {self.max_retries} retries. "
-                    "Consider moving to dead letter queue for manual review."
-                )
-                # Route to dead letter queue
-                route_to_dead_letter_queue(request_data, str(e))
-                
+            logger.error(f"Processing for job {request_id} failed: {e}", exc_info=True)
             if request_id:
-                await job_queue.update_job(
-                    request_id, status=JobStatus.FAILED, error=str(e)
-                )
-
-                # Send callback notification if URL provided
-                callback_url = request_data.get("callback_url")
-                if callback_url:
+                await job_queue.update_job(request_id, status=JobStatus.FAILED, error=str(e))
+                if request_data.get("callback_url"):
                     await _send_callback_notification(
-                        callback_url=callback_url,
+                        callback_url=request_data["callback_url"],
                         request_id=request_id,
                         status="failed",
                         error=str(e),
                     )
-
             raise
 
         finally:
-            # Cleanup temporary file - guaranteed to run regardless of success/failure
-            # Only clean up files that were created by this task (URL downloads or direct data uploads)
-            # and not files passed from the API endpoint to avoid deleting them twice.
-            if audio_path is not None and audio_path.exists():
-                should_cleanup = (
-                    audio_data is not None or  # File created from direct data upload
-                    request_data.get("audio_url") is not None  # File created from URL download
-                )
-                if should_cleanup:
-                    try:
-                        audio_path.unlink()
-                        logger.debug(f"Cleaned up temporary file: {audio_path}")
-                    except Exception as cleanup_error:
-                        logger.warning(f"Failed to cleanup temporary file {audio_path}: {cleanup_error}")
-                else:
-                    logger.debug(f"Skipping cleanup of file provided by API: {audio_path}")
+            # Cleanup temporary file if it was created by this worker
+            if audio_path and audio_path.exists() and (audio_data or request_data.get("audio_url")):
+                logger.debug(f"Cleaning up temporary file: {audio_path}")
+                audio_path.unlink()
 
     # Run the async function in a new event loop
     return asyncio.run(_process_audio_async())
-
-def route_to_dead_letter_queue(request_data: dict, error_message: str) -> None:
-    """
-    Route a failed task to the dead letter queue for manual processing.
-    
-    Args:
-        request_data: The original request data
-        error_message: The error message that caused the failure
-    """
-    logger.warning(
-        f"Routing job {request_data.get('request_id')} to dead letter queue: {error_message}"
-    )
-    
-    # Here you could implement logic to send the task to the dead letter queue
-    # For example, using Celery's apply_async with a specific queue
-    # process_audio_async.apply_async(
-    #     args=(request_data,),
-    #     queue='dead_letter',
-    #     retry=False
-    # )
