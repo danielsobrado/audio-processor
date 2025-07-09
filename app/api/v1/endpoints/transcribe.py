@@ -266,7 +266,7 @@ async def cancel_job(
 
     try:
         # Cancel Celery task if it exists
-        if job.task_id:
+        if job.task_id is not None:
             from app.workers.celery_app import celery_app
 
             celery_app.control.revoke(job.task_id, terminate=True)
