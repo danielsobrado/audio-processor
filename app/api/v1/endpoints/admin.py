@@ -3,7 +3,7 @@ Admin endpoints for job management and system operations.
 """
 
 import logging
-from typing import List, Optional
+from typing import List, Optional, cast
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -50,6 +50,7 @@ async def list_all_jobs(
         query = select(TranscriptionJob).order_by(desc(TranscriptionJob.created_at))
         
         # Apply status filter if provided
+        job_status = None
         if status_filter:
             try:
                 job_status = JobStatus(status_filter.lower())
@@ -62,7 +63,7 @@ async def list_all_jobs(
         
         # Get total count for pagination
         count_query = select(func.count()).select_from(TranscriptionJob)
-        if status_filter:
+        if status_filter and job_status is not None:
             count_query = count_query.where(TranscriptionJob.status == job_status)
         
         total_result = await session.execute(count_query)
@@ -78,18 +79,27 @@ async def list_all_jobs(
         # Convert to response format
         job_responses = []
         for job in jobs:
+            # Cast to help pyright understand these are actual values, not Column objects
+            job_request_id = str(cast(str, job.request_id))
+            job_user_id = str(cast(int, job.user_id))
+            job_status = cast(JobStatus, job.status).value
+            job_created = cast(datetime, job.created_at)
+            job_updated = cast(datetime, job.updated_at)
+            job_transcription = cast(str | None, job.transcription_result)
+            job_error = cast(str | None, job.error_message)
+            
             job_response = JobResponse(
-                request_id=job.request_id,
-                user_id=job.user_id,
-                status=job.status.value,
-                progress=job.progress or 0.0,
-                created=job.created_at,
-                updated=job.updated_at,
-                result=job.result,
-                error=job.error,
-                task_id=job.task_id,
-                job_type=job.job_type,
-                parameters=job.parameters,
+                request_id=job_request_id,
+                user_id=job_user_id,
+                status=job_status,
+                progress=0.0,  # Progress not in current schema
+                created=job_created,
+                updated=job_updated,
+                result={"transcription": job_transcription} if job_transcription else None,
+                error=job_error,
+                task_id=None,  # Task ID not in current schema
+                job_type="transcription",  # Default job type
+                parameters=None,  # Parameters not in current schema
             )
             job_responses.append(job_response)
         
@@ -97,7 +107,7 @@ async def list_all_jobs(
         
         return AdminJobListResponse(
             jobs=job_responses,
-            total_count=total_count,
+            total_count=total_count or 0,
             limit=limit,
             offset=offset,
         )
@@ -148,8 +158,9 @@ async def requeue_job(
                 detail=f"Job with request_id {request_id} not found"
             )
         
-        # Check if job can be requeued
-        if job.status != JobStatus.FAILED:
+        # Check if job can be requeued (cast to help pyright)
+        job_status = cast(JobStatus, job.status)
+        if job_status != JobStatus.FAILED:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Job status is '{job.status.value}'. Only failed jobs can be requeued."
@@ -242,18 +253,27 @@ async def get_job_details(
                 detail=f"Job with request_id {request_id} not found"
             )
         
+        # Cast to help pyright understand these are actual values, not Column objects
+        job_request_id = str(cast(str, job.request_id))
+        job_user_id = str(cast(int, job.user_id))
+        job_status = cast(JobStatus, job.status).value
+        job_created = cast(datetime, job.created_at)
+        job_updated = cast(datetime, job.updated_at)
+        job_transcription = cast(str | None, job.transcription_result)
+        job_error = cast(str | None, job.error_message)
+        
         return JobResponse(
-            request_id=job.request_id,
-            user_id=job.user_id,
-            status=job.status.value,
-            progress=job.progress or 0.0,
-            created=job.created_at,
-            updated=job.updated_at,
-            result=job.result,
-            error=job.error,
-            task_id=job.task_id,
-            job_type=job.job_type,
-            parameters=job.parameters,
+            request_id=job_request_id,
+            user_id=job_user_id,
+            status=job_status,
+            progress=0.0,  # Progress not in current schema
+            created=job_created,
+            updated=job_updated,
+            result={"transcription": job_transcription} if job_transcription else None,
+            error=job_error,
+            task_id=None,  # Task ID not in current schema
+            job_type="transcription",  # Default job type
+            parameters=None,  # Parameters not in current schema
         )
         
     except HTTPException:
