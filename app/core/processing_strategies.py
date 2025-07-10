@@ -6,12 +6,20 @@ from typing import Any, Dict, Optional
 
 from app.core.deepgram_formatter import DeepgramFormatter
 from app.schemas.database import JobStatus
-from app.workers.celery_app import (
-    audio_processor_instance,
-    translation_service_instance,
-)
 
 logger = logging.getLogger(__name__)
+
+
+def get_audio_processor_instance():
+    """Lazy import to avoid circular dependencies."""
+    from app.workers.celery_app import audio_processor_instance
+    return audio_processor_instance
+
+
+def get_translation_service_instance():
+    """Lazy import to avoid circular dependencies."""
+    from app.workers.celery_app import translation_service_instance
+    return translation_service_instance
 
 
 class ProcessingContext:
@@ -56,11 +64,17 @@ class TranscriptionStrategy(ProcessingStrategy):
 
     async def process(self, context: ProcessingContext) -> ProcessingContext:
         logger.info(f"Executing TranscriptionStrategy for job {context.request_id}")
-        if audio_processor_instance is None:
+        audio_processor = get_audio_processor_instance()
+        if audio_processor is None:
             raise RuntimeError("AudioProcessor not initialized.")
 
         try:
-            context.processing_result = await audio_processor_instance.process_audio(
+            # Ensure models are initialized if needed
+            if audio_processor.whisper_model is None:
+                logger.info("Initializing AudioProcessor models...")
+                await audio_processor.initialize_models()
+                
+            context.processing_result = await audio_processor.process_audio(
                 audio_path=context.audio_path,
                 language=context.request_data.get("language", "auto"),
                 diarize=context.request_data.get("diarize", True),
@@ -131,9 +145,15 @@ class TranslationStrategy(ProcessingStrategy):
 
         logger.info(f"Executing TranslationStrategy for job {context.request_id}")
         try:
-            if not translation_service_instance:
+            translation_service = get_translation_service_instance()
+            if not translation_service:
                 logger.warning("Translation service not available. Skipping.")
                 return context
+
+            # Ensure models are initialized if needed
+            if not hasattr(translation_service, 'model') or translation_service.model is None:
+                logger.info("Initializing TranslationService models...")
+                await translation_service.initialize_model()
 
             transcript = context.deepgram_result["results"]["channels"][0][
                 "alternatives"
@@ -142,7 +162,7 @@ class TranslationStrategy(ProcessingStrategy):
             source_lang = context.request_data.get("language", "en")
 
             if target_lang:
-                translated_text = await translation_service_instance.translate_text(
+                translated_text = await translation_service.translate_text(
                     text=transcript,
                     target_language=target_lang,
                     source_language=source_lang,

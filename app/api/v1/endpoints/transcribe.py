@@ -184,6 +184,9 @@ async def transcribe_audio(
         task_data = request.dict()
         if file:
             task_data["audio_file_path"] = audio_file_path
+        
+        # Add graph processing configuration
+        task_data["enable_graph_processing"] = settings.graph.enabled
 
         task = process_audio_async.delay(
             request_data=task_data,

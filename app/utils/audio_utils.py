@@ -35,16 +35,35 @@ async def validate_audio_file(file: UploadFile) -> None:
                 settings.max_file_size / 1024 / 1024:.2f} MB",
         )
 
-    # Check content type
+    # Check content type and file extension
     supported_formats = settings.supported_formats
     if isinstance(supported_formats, str):
         supported_formats = [supported_formats]
 
-    if file.content_type is None or file.content_type not in supported_formats:
+    # Create mapping of MIME types to extensions
+    mime_to_ext = {
+        'audio/wav': 'wav',
+        'audio/wave': 'wav', 
+        'audio/x-wav': 'wav',
+        'audio/mpeg': 'mp3',
+        'audio/mp3': 'mp3',
+        'audio/flac': 'flac',
+        'audio/x-flac': 'flac'
+    }
+    
+    # Check by MIME type first
+    file_extension = None
+    if file.content_type and file.content_type in mime_to_ext:
+        file_extension = mime_to_ext[file.content_type]
+    
+    # Fallback to filename extension if MIME type not recognized
+    if not file_extension and file.filename:
+        file_extension = Path(file.filename).suffix.lower().lstrip('.')
+    
+    if not file_extension or file_extension not in supported_formats:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=f"Unsupported audio format. Supported formats: {
-                settings.supported_formats}",
+            detail=f"Unsupported audio format. Supported formats: {supported_formats}",
         )
 
 

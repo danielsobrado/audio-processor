@@ -71,8 +71,12 @@ class AudioProcessor:
             logger.info("Loading WhisperX transcription model...")
             await self._load_whisper_model()
 
-            logger.info("Loading speaker diarization model...")
-            await self._load_diarization_model()
+            if settings.diarization.enabled:
+                logger.info("Loading speaker diarization model...")
+                await self._load_diarization_model()
+            else:
+                logger.info("Diarization disabled - skipping diarization model loading")
+                self.diarization_pipeline = None
 
             logger.info("All models loaded successfully")
 
@@ -209,7 +213,7 @@ class AudioProcessor:
 
             # Step 3: Speaker diarization
             diarization_result = None
-            if diarize and self.diarization_pipeline:
+            if diarize and self.diarization_pipeline and settings.diarization.enabled:
                 logger.info("Starting speaker diarization...")
 
                 diarization_result = self.diarization_pipeline(
@@ -224,6 +228,10 @@ class AudioProcessor:
                     result,
                 )
                 logger.info("Speaker diarization complete")
+            elif diarize and not settings.diarization.enabled:
+                logger.info("Diarization requested but disabled in configuration - skipping")
+            elif diarize and not self.diarization_pipeline:
+                logger.warning("Diarization requested but model not loaded - skipping")
 
             # Cleanup temporary file
             if converted_path != audio_path:

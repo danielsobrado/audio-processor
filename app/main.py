@@ -139,7 +139,7 @@ def create_application() -> FastAPI:
     setup_exception_handlers(app)
 
     # Include routers
-    app.include_router(api_router, prefix="/api")
+    app.include_router(api_router, prefix="/api/v1")
 
     return app
 
@@ -243,6 +243,16 @@ app = create_application()
 @app.get("/", include_in_schema=False)
 async def root() -> dict:
     """Root endpoint for health checks."""
+    return {
+        "service": "Audio Processing Microservice",
+        "status": "healthy",
+        "version": "1.0.0",
+    }
+
+
+@app.get("/health", include_in_schema=False)
+async def health_check() -> dict:
+    """Health check endpoint."""
     return {
         "service": "Audio Processing Microservice",
         "status": "healthy",

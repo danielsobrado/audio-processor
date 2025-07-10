@@ -98,6 +98,7 @@ class WhisperXSettings(BaseSettings):
 class DiarizationSettings(BaseSettings):
     """Speaker diarization configuration."""
 
+    enabled: bool = Field(default=True, alias="DIARIZATION_ENABLED")
     model_name: str = Field(
         default=DEFAULT_DIARIZATION_MODEL, alias="DIARIZATION_MODEL"
     )

@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 import httpx
 import jwt
 import jwt.algorithms as algorithms
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidTokenError
 
@@ -56,18 +56,23 @@ def get_cache_service() -> CacheService:
     return CacheService()
 
 
-def get_job_queue() -> JobQueue:
+def get_job_queue(request: Request) -> JobQueue:
     """
-    Dependency to get a JobQueue instance.
+    Dependency to get the initialized JobQueue instance.
     """
-    return JobQueue()
+    if not hasattr(request.app.state, 'job_queue') or request.app.state.job_queue is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Job queue service not available"
+        )
+    return request.app.state.job_queue
 
 
-def get_transcription_service() -> TranscriptionService:
+def get_transcription_service(request: Request) -> TranscriptionService:
     """
     Dependency to get a TranscriptionService instance.
     """
-    job_queue = get_job_queue()
+    job_queue = get_job_queue(request)
     return TranscriptionService(job_queue)
 
 
@@ -167,6 +172,15 @@ async def verify_jwt_token(token: str) -> dict:
     Verify JWT token against Keycloak and return claims.
     """
     try:
+        # If signature verification is disabled (test mode), just decode without verification
+        if not settings.auth.verify_signature:
+            # Decode without verification for test mode
+            payload = jwt.decode(
+                token,
+                options={"verify_signature": False, "verify_exp": False}
+            )
+            return payload
+        
         # Decode header without verification to get key ID
         unverified_header = jwt.get_unverified_header(token)
 

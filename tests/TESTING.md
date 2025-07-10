@@ -145,6 +145,26 @@ Tests automatically use the `testing` environment with these settings:
 - **Celery**: In-memory broker for speed
 - **External APIs**: Mocked/disabled
 - **Models**: Smallest/fastest configurations
+- **Authentication**: JWT signature verification disabled
+
+#### Test Dependencies
+End-to-end tests require these services to be running:
+- **Redis** (localhost:6379) - For caching and Celery
+- **Neo4j** (localhost:7687) - For graph storage
+  - Username: `neo4j`
+  - Password: `devpassword` (as configured in `.env.test`)
+
+Start services with Docker:
+```bash
+# Redis
+docker run -d --name redis-test -p 6379:6379 redis:latest
+
+# Neo4j
+docker run -d --name neo4j-test \
+  -p 7474:7474 -p 7687:7687 \
+  -e NEO4J_AUTH=neo4j/devpassword \
+  neo4j:latest
+```
 
 ### Pytest Configuration
 Settings are in `pyproject.toml`:
@@ -164,7 +184,7 @@ Coverage includes:
 - **Missing lines** highlighted
 - **Exclusions** for test files and migration scripts
 
-## Troubleshooting
+### Troubleshooting
 
 ### Common Issues
 
@@ -188,98 +208,78 @@ Coverage includes:
    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
    ```
 
-### Debug Mode
-For detailed test output:
-```bash
-# Windows
-scripts\run-tests.bat debug
+5. **Diarization model errors when using Celery**
+   If you see errors like "Could not download 'pyannote/segmentation' model" when running Celery commands, you're likely not using the test environment:
+   
+   ```powershell
+   # ❌ Wrong - uses default environment (tries to load diarization)
+   celery -A app.workers.celery_app inspect active
+   
+   # ✅ Correct - uses test environment (diarization disabled)
+   uv run --env-file .env.test celery -A app.workers.celery_app inspect active
+   ```
+   
+   Always use `--env-file .env.test` with Celery commands during testing.
 
-# WSL/Linux
-./scripts/run-tests.sh debug
+6. **Celery "No nodes replied within time constraint" error**
+   This error when running `celery inspect active` is common with in-memory brokers and doesn't indicate a problem:
+   
+   ```powershell
+   # This may show "No nodes replied" but is normal with memory:// broker
+   uv run --env-file .env.test celery -A app.workers.celery_app inspect active
+   ```
+   
+   The worker is still functional if you see "celery@HOSTNAME ready" in the worker logs.
 
-# PowerShell  
-.\scripts\run-tests.ps1 debug
+7. **Jobs stuck in "pending" status**
+   If end-to-end tests show jobs stuck in pending status, this usually means the Celery worker is not running. Follow these steps:
+   
+   **Step 1: Check if worker is running**
+   ```powershell
+   uv run --env-file .env.test celery -A app.workers.celery_app inspect active
+   ```
+   If you see "Error: No nodes replied within time constraint", the worker is not running.
+   
+   **Step 2: Start the Celery worker (Windows)**
+   ```powershell
+   # Start worker with Windows-compatible settings
+   uv run --env-file .env.test celery -A app.workers.celery_app worker --loglevel=info --concurrency=1 --pool=solo
+   ```
+   
+   **Step 3: Verify worker is ready**
+   Look for this message in the worker logs:
+   ```
+   [2025-01-01 12:00:00,000: INFO/MainProcess] celery@HOSTNAME ready.
+   ```
+   
+   **Step 4: Run your E2E test in a separate terminal**
+   ```powershell
+   uv run --env-file .env.test python test_e2e_complete.py
+   ```
+   
+   **Additional checks:**
+   - Server and worker use the same broker configuration (both should use `memory://localhost//`)
+   - Both server and worker use the same environment file (`.env.test`)
+   - Try the manual processing test if worker issues persist: `uv run --env-file .env.test python test_e2e_real_audio.py` (has fallback processing)
+
+8. **Windows Celery permission errors**
+   On Windows, you may see permission errors like "PermissionError: [WinError 5] Access is denied" when using the default `prefork` concurrency model:
+   
+   ```
+   [ERROR/SpawnPoolWorker-1] Pool process error: PermissionError(13, 'Access is denied', None, 5, None)
+   BrokenPipeError: [WinError 109] The pipe has been ended
+   OSError: [WinError 6] The handle is invalid
+   ```
+   
+   **Solution**: Use the `solo` concurrency model which works better on Windows:
+   
+   ```powershell
+   # ❌ Default (may fail on Windows)
+   uv run --env-file .env.test celery -A app.workers.celery_app worker --loglevel=info
+   
+   # ✅ Windows-compatible
+   uv run --env-file .env.test celery -A app.workers.celery_app worker --loglevel=info --concurrency=1 --pool=solo
+   ```
+   
+   The `solo` pool runs tasks in the main process rather than spawning separate worker processes, avoiding Windows-specific permission issues.
 ```
-
-### Environment Validation
-Test environment setup:
-```bash
-# Windows
-scripts\run-tests.bat env
-
-# WSL/Linux
-./scripts/run-tests.sh env
-```
-
-### OpenRouter LLM Configuration
-For testing LLM-based graph processing with OpenRouter:
-```powershell
-# Windows PowerShell
-$env:OPENROUTER_API_KEY = "sk-or-v1-your-key-here"
-$env:GRAPH_LLM_PROVIDER = "openrouter"
-$env:GRAPH_LLM_MODEL = "openai/gpt-3.5-turbo"
-$env:GRAPH_ENABLED = "true"
-$env:GRAPH_ENTITY_EXTRACTION_METHOD = "llm_based"
-$env:GRAPH_TOPIC_EXTRACTION_METHOD = "llm_based"
-$env:GRAPH_SENTIMENT_ANALYSIS_ENABLED = "true"
-$env:GRAPH_RELATIONSHIP_EXTRACTION_METHOD = "llm_based"
-
-# Run OpenRouter tests
-python test_openrouter_config.py
-python test_llm_graph_advanced.py
-```
-
-```bash
-# WSL/Linux
-export OPENROUTER_API_KEY="sk-or-v1-your-key-here"
-export GRAPH_LLM_PROVIDER="openrouter"
-export GRAPH_LLM_MODEL="openai/gpt-3.5-turbo"
-export GRAPH_ENABLED="true"
-export GRAPH_ENTITY_EXTRACTION_METHOD="llm_based"
-export GRAPH_TOPIC_EXTRACTION_METHOD="llm_based"
-export GRAPH_SENTIMENT_ANALYSIS_ENABLED="true"
-export GRAPH_RELATIONSHIP_EXTRACTION_METHOD="llm_based"
-
-# Run OpenRouter tests
-python test_openrouter_config.py
-python test_llm_graph_advanced.py
-```
-
-## Script Features
-
-### Cross-Platform Support
-- **Windows**: Command Prompt, PowerShell
-- **WSL**: Full Linux compatibility  
-- **Auto-detection**: Poetry vs pip environments
-
-### User Experience
-- **Colored output** for better readability
-- **Progress indicators** and status messages
-- **Error handling** with helpful messages
-- **Auto-opening** coverage reports
-
-### Flexibility
-- **Custom test patterns** support
-- **Environment isolation** 
-- **Watch mode** for development
-- **Multiple output formats**
-
-## Integration with IDE
-
-### VS Code
-Add to `.vscode/tasks.json`:
-```json
-{
-    "label": "Run Tests",
-    "type": "shell",
-    "command": "./scripts/run-tests.sh",
-    "args": ["${input:testType}"],
-    "group": "test"
-}
-```
-
-### PyCharm
-Configure pytest as test runner with:
-- **Environment**: `ENVIRONMENT=testing`
-- **Working directory**: Project root
-- **Additional arguments**: From script options
