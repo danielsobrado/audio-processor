@@ -211,6 +211,40 @@ scripts\run-tests.bat env
 ./scripts/run-tests.sh env
 ```
 
+### OpenRouter LLM Configuration
+For testing LLM-based graph processing with OpenRouter:
+```powershell
+# Windows PowerShell
+$env:OPENROUTER_API_KEY = "sk-or-v1-your-key-here"
+$env:GRAPH_LLM_PROVIDER = "openrouter"
+$env:GRAPH_LLM_MODEL = "openai/gpt-3.5-turbo"
+$env:GRAPH_ENABLED = "true"
+$env:GRAPH_ENTITY_EXTRACTION_METHOD = "llm_based"
+$env:GRAPH_TOPIC_EXTRACTION_METHOD = "llm_based"
+$env:GRAPH_SENTIMENT_ANALYSIS_ENABLED = "true"
+$env:GRAPH_RELATIONSHIP_EXTRACTION_METHOD = "llm_based"
+
+# Run OpenRouter tests
+python test_openrouter_config.py
+python test_llm_graph_advanced.py
+```
+
+```bash
+# WSL/Linux
+export OPENROUTER_API_KEY="sk-or-v1-your-key-here"
+export GRAPH_LLM_PROVIDER="openrouter"
+export GRAPH_LLM_MODEL="openai/gpt-3.5-turbo"
+export GRAPH_ENABLED="true"
+export GRAPH_ENTITY_EXTRACTION_METHOD="llm_based"
+export GRAPH_TOPIC_EXTRACTION_METHOD="llm_based"
+export GRAPH_SENTIMENT_ANALYSIS_ENABLED="true"
+export GRAPH_RELATIONSHIP_EXTRACTION_METHOD="llm_based"
+
+# Run OpenRouter tests
+python test_openrouter_config.py
+python test_llm_graph_advanced.py
+```
+
 ## Script Features
 
 ### Cross-Platform Support

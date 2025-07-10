@@ -102,14 +102,27 @@ class Neo4jDriver(GraphDatabaseDriver):
 
         if self._driver is None:
             raise RuntimeError("Neo4j driver not initialized.")
+            
+        logger.info(f"🔄 Neo4j executing {len(queries)} batch queries...")
+        
         async with self._driver.session() as session:
-            for query, parameters in queries:
-                result = await session.run(query, parameters or {})
-                batch_records = []
-                async for record in result:
-                    batch_records.append(dict(record))
-                results.extend(batch_records)
+            for i, (query, parameters) in enumerate(queries):
+                try:
+                    logger.debug(f"📤 Executing query {i+1}: {query[:100]}...")
+                    result = await session.run(query, parameters or {})
+                    batch_records = []
+                    async for record in result:
+                        batch_records.append(dict(record))
+                    results.extend(batch_records)
+                    logger.debug(f"✅ Query {i+1} completed: {len(batch_records)} records")
+                except Exception as e:
+                    logger.error(f"❌ Query {i+1} failed: {e}")
+                    logger.error(f"   Query: {query}")
+                    logger.error(f"   Parameters: {parameters}")
+                    # Continue with other queries instead of failing completely
+                    continue
 
+        logger.info(f"✅ Neo4j batch execution completed: {len(results)} total results")
         return results
 
 
@@ -310,15 +323,22 @@ class GraphDatabaseManager:
     async def execute_batch_transactions(self, queries: List[tuple]) -> List[Dict]:
         """Execute batch transactions."""
         if not self.is_enabled or not self.is_connected:
-            logger.debug("Graph database not available")
+            logger.debug("Graph database not available for batch transactions")
             return []
 
         try:
             if self._driver is None:
                 raise RuntimeError("Graph database driver not initialized.")
-            return await self._driver.execute_batch_queries(queries)
+            
+            logger.info(f"🔄 Executing {len(queries)} batch transactions...")
+            results = await self._driver.execute_batch_queries(queries)
+            logger.info(f"✅ Batch transactions completed: {len(results)} results")
+            return results
+            
         except Exception as e:
-            logger.error(f"Failed to execute batch transactions: {e}")
+            logger.error(f"❌ Failed to execute batch transactions: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             raise
 
     @asynccontextmanager

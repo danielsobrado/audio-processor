@@ -21,11 +21,16 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      neo4j:
+        condition: service_healthy
     environment:
       - DATABASE_URL=postgresql://audiouser:devpassword@postgres:5432/audio_processor_dev
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - GRAPH_DATABASE_URL=bolt://neo4j:7687
+      - GRAPH_DATABASE_USERNAME=neo4j
+      - GRAPH_DATABASE_PASSWORD=devpassword
       - KEYCLOAK_URL=http://localhost:8080
       - KEYCLOAK_REALM=audio-processor
       - KEYCLOAK_CLIENT_ID=dev-client
@@ -112,11 +117,16 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      neo4j:
+        condition: service_healthy
     environment:
       - DATABASE_URL=postgresql://audiouser:devpassword@postgres:5432/audio_processor_dev
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - GRAPH_DATABASE_URL=bolt://neo4j:7687
+      - GRAPH_DATABASE_USERNAME=neo4j
+      - GRAPH_DATABASE_PASSWORD=devpassword
       - ENVIRONMENT=development
       - DEBUG=true
       - LOG_LEVEL=DEBUG
