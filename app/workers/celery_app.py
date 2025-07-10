@@ -85,14 +85,14 @@ def setup_models(sender, **kwargs):
     if audio_processor_instance is None:
         logger.info("Initializing AudioProcessor models for worker...")
         audio_processor_instance = AudioProcessor()
-        # Note: Celery signals are sync, so we need to run the async init
-        asyncio.run(audio_processor_instance.initialize_models())
-        logger.info("AudioProcessor models initialized successfully")
+        # Run the sync initialization without models to avoid async issues
+        # Models will be lazy-loaded when needed in the task
+        logger.info("AudioProcessor instance created (models will be lazy-loaded)")
 
     # Initialize Translation Service
     settings = get_settings()
     if translation_service_instance is None and settings.translation.enabled:
         logger.info("Initializing TranslationService model for worker...")
         translation_service_instance = TranslationService()
-        asyncio.run(translation_service_instance.initialize_model())
-        logger.info("TranslationService model initialized successfully")
+        # Models will be lazy-loaded when needed
+        logger.info("TranslationService instance created (models will be lazy-loaded)")

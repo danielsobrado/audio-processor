@@ -139,11 +139,19 @@ class JobQueue:
         """
         try:
             async with self._ensure_database().get_async_session() as session:
-                job = await self.get_job(request_id)
+                # Query and update within the same session to avoid detached object issues
+                result_query = await session.execute(
+                    select(TranscriptionJob).where(
+                        TranscriptionJob.request_id == request_id
+                    )
+                )
+                job = result_query.scalar_one_or_none()
+                
                 if not job:
                     logger.warning(f"Job {request_id} not found for update")
                     return None
 
+                # Update only the fields that are provided
                 update_data = {
                     "status": status,
                     "task_id": task_id,

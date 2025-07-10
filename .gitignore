@@ -199,3 +199,4 @@ app/lib/
 !app/lib/autoschema_kg
 .VSCodeCounter/
 .env.test
+test.db
