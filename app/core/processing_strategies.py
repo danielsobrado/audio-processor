@@ -196,3 +196,130 @@ class GraphProcessingStrategy(ProcessingStrategy):
                     "error": str(e),
                 }
         return context
+
+
+class SentimentAnalysisStrategy(ProcessingStrategy):
+    """
+    Strategy for analyzing sentiment of transcription segments using LLM.
+    """
+
+    async def process(self, context: ProcessingContext) -> ProcessingContext:
+        """Process sentiment analysis on transcription result."""
+        if context.is_failed():
+            return context
+
+        try:
+            from app.core.graph_processor import graph_processor
+            
+            logger.info(f"🎭 Running sentiment analysis for request {context.request_id}")
+            
+            if not context.processing_result or not context.processing_result.get("segments"):
+                context.error = Exception("No transcription segments available for sentiment analysis")
+                return context
+
+            # Check if sentiment analysis is enabled
+            settings = graph_processor.settings
+            if not settings.graph.sentiment_analysis_enabled:
+                logger.info("Sentiment analysis is disabled, skipping")
+                return context
+
+            # Run sentiment analysis on each segment
+            segments = context.processing_result["segments"]
+            analyzed_segments = []
+            
+            for segment in segments:
+                text = segment.get("text", "").strip()
+                if text:
+                    try:
+                        if graph_processor.llm_sentiment_analyzer:
+                            sentiment_data = await graph_processor.llm_sentiment_analyzer.analyze_sentiment(text)
+                            segment["sentiment"] = sentiment_data
+                            logger.debug(f"Sentiment for '{text[:30]}...': {sentiment_data.get('sentiment', 'unknown')}")
+                    except Exception as e:
+                        logger.warning(f"Sentiment analysis failed for segment: {e}")
+                        segment["sentiment"] = {
+                            "sentiment": "neutral",
+                            "confidence": 0.5,
+                            "emotions": [],
+                            "intensity": 0.5
+                        }
+                
+                analyzed_segments.append(segment)
+            
+            # Update processing result with sentiment data
+            context.processing_result["segments"] = analyzed_segments
+            logger.info(f"✅ Sentiment analysis completed for {len(analyzed_segments)} segments")
+
+        except Exception as e:
+            logger.error(f"❌ Sentiment analysis strategy failed: {e}")
+            context.error = e
+
+        return context
+
+
+class KeywordSpottingStrategy(ProcessingStrategy):
+    """
+    Strategy for spotting specific keywords and entities in transcription using LLM.
+    """
+
+    async def process(self, context: ProcessingContext) -> ProcessingContext:
+        """Process keyword spotting on transcription result."""
+        if context.is_failed():
+            return context
+
+        try:
+            from app.core.graph_processor import graph_processor
+            
+            logger.info(f"🔍 Running keyword spotting for request {context.request_id}")
+            
+            if not context.processing_result or not context.processing_result.get("segments"):
+                context.error = Exception("No transcription segments available for keyword spotting")
+                return context
+
+            # Run entity extraction on each segment
+            segments = context.processing_result["segments"]
+            enhanced_segments = []
+            
+            for segment in segments:
+                text = segment.get("text", "").strip()
+                if text:
+                    try:
+                        # Extract entities
+                        entities = await graph_processor._extract_entities(text)
+                        segment["entities"] = [
+                            {
+                                "text": entity_text,
+                                "type": entity_type,
+                                "confidence": confidence
+                            }
+                            for entity_text, entity_type, confidence in entities
+                        ]
+                        
+                        # Extract topics
+                        topics = await graph_processor._extract_topics(text)
+                        segment["topics"] = [
+                            {
+                                "name": topic_name,
+                                "confidence": confidence
+                            }
+                            for topic_name, confidence in topics
+                        ]
+                        
+                        logger.debug(f"Found {len(entities)} entities and {len(topics)} topics in segment")
+                        
+                    except Exception as e:
+                        logger.warning(f"Keyword spotting failed for segment: {e}")
+                        segment["entities"] = []
+                        segment["topics"] = []
+                
+                enhanced_segments.append(segment)
+            
+            # Update processing result with keyword data
+            context.processing_result["segments"] = enhanced_segments
+            logger.info(f"✅ Keyword spotting completed for {len(enhanced_segments)} segments")
+
+        except Exception as e:
+            logger.error(f"❌ Keyword spotting strategy failed: {e}")
+            context.error = e
+
+        return context

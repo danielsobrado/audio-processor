@@ -196,15 +196,44 @@ class GraphSettings(BaseSettings):
     # Topic extraction configuration
     topic_extraction_method: str = Field(
         default="keyword_matching", alias="GRAPH_TOPIC_EXTRACTION_METHOD"
-    )
+    )  # Options: "keyword_matching", "llm_based", "hybrid"
     topic_keywords: Dict[str, List[str]] = Field(
         default={}, alias="GRAPH_TOPIC_KEYWORDS"
     )
 
-    # Entity extraction patterns
+    # Entity extraction configuration
+    entity_extraction_method: str = Field(
+        default="regex_patterns", alias="GRAPH_ENTITY_EXTRACTION_METHOD"
+    )  # Options: "regex_patterns", "llm_based", "hybrid"
     entity_extraction_patterns: Dict[str, str] = Field(
         default={}, alias="GRAPH_ENTITY_EXTRACTION_PATTERNS"
     )
+
+    # Sentiment analysis configuration
+    sentiment_analysis_enabled: bool = Field(
+        default=False, alias="GRAPH_SENTIMENT_ANALYSIS_ENABLED"
+    )
+    sentiment_analysis_method: str = Field(
+        default="llm_based", alias="GRAPH_SENTIMENT_ANALYSIS_METHOD"
+    )  # Options: "llm_based", "ml_model"
+
+    # Relationship extraction configuration
+    relationship_extraction_method: str = Field(
+        default="rule_based", alias="GRAPH_RELATIONSHIP_EXTRACTION_METHOD"
+    )  # Options: "rule_based", "llm_based", "hybrid"
+
+    # LLM configuration
+    llm_provider: str = Field(
+        default="openai", alias="GRAPH_LLM_PROVIDER"
+    )  # Options: "openai", "anthropic", "openrouter", "local"
+    llm_model: str = Field(
+        default="gpt-3.5-turbo", alias="GRAPH_LLM_MODEL"
+    )
+    llm_api_key: str = Field(default="", alias="GRAPH_LLM_API_KEY")
+    llm_api_base: str = Field(default="", alias="GRAPH_LLM_API_BASE")
+    llm_max_tokens: int = Field(default=1000, alias="GRAPH_LLM_MAX_TOKENS")
+    llm_temperature: float = Field(default=0.1, alias="GRAPH_LLM_TEMPERATURE")
+    llm_batch_size: int = Field(default=5, alias="GRAPH_LLM_BATCH_SIZE")
 
     model_config = SettingsConfigDict(case_sensitive=False, extra="forbid")
 

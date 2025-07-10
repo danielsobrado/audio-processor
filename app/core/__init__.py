@@ -6,8 +6,10 @@ from .job_queue import JobQueue
 from .processing_strategies import (
     FormattingStrategy,
     GraphProcessingStrategy,
+    KeywordSpottingStrategy,
     ProcessingContext,
     ProcessingStrategy,
+    SentimentAnalysisStrategy,
     SummarizationStrategy,
     TranscriptionStrategy,
     TranslationStrategy,
@@ -27,4 +29,6 @@ __all__ = [
     "SummarizationStrategy",
     "TranslationStrategy",
     "GraphProcessingStrategy",
+    "SentimentAnalysisStrategy",
+    "KeywordSpottingStrategy",
 ]

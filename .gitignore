@@ -198,3 +198,4 @@ cython_debug/
 app/lib/
 !app/lib/autoschema_kg
 .VSCodeCounter/
+.env.test

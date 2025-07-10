@@ -395,19 +395,39 @@ class GraphService:
         Create multiple nodes in a batch.
         """
         if not self.settings.graph.enabled:
+            logger.warning("Graph processing is disabled, skipping node creation")
             return 0
 
         try:
+            logger.info(f"🔧 Creating {len(nodes)} nodes in batch...")
             manager = await get_graph_db_manager()
+            
+            if not manager.is_connected:
+                logger.info("📡 Initializing graph database connection...")
+                await manager.initialize()
+            
             queries = []
-            for node in nodes:
-                query = f"MERGE (n:{
-                                 node.node_type.value} {{id: $id}}) ON CREATE SET n = $props ON MATCH SET n += $props"
-                queries.append((query, node.to_cypher_props()))
+            for i, node in enumerate(nodes):
+                props = node.to_cypher_props()
+                query = f"MERGE (n:{node.node_type.value} {{id: $id}}) ON CREATE SET n = $props ON MATCH SET n += $props"
+                queries.append((query, {"id": node.id, "props": props}))
+                
+                if i < 3:  # Log first 3 queries for debugging
+                    logger.info(f"📋 Query {i+1}: {query}")
+                    logger.info(f"📋 Props {i+1}: {props}")
+            
+            logger.info(f"📤 Executing {len(queries)} node creation queries...")
             results = await manager.execute_batch_transactions(queries)
-            return len(results)
+            
+            # Return the number of nodes we attempted to create since MERGE doesn't return results
+            nodes_created = len(nodes)
+            logger.info(f"✅ Node batch creation completed: {nodes_created} nodes processed")
+            return nodes_created
+            
         except Exception as e:
-            logger.error(f"Failed to create nodes in batch: {e}", exc_info=True)
+            logger.error(f"❌ Failed to create nodes in batch: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             raise
 
     async def create_relationships_batch(self, relationships: List[Any]) -> int:
@@ -415,30 +435,46 @@ class GraphService:
         Create multiple relationships in a batch.
         """
         if not self.settings.graph.enabled:
+            logger.warning("Graph processing is disabled, skipping relationship creation")
             return 0
 
         try:
+            logger.info(f"🔧 Creating {len(relationships)} relationships in batch...")
             manager = await get_graph_db_manager()
+            
+            if not manager.is_connected:
+                logger.info("📡 Initializing graph database connection...")
+                await manager.initialize()
+            
             queries = []
-            for rel in relationships:
+            for i, rel in enumerate(relationships):
                 query = (
                     f"MATCH (a), (b) WHERE a.id = $from_node_id AND b.id = $to_node_id "
                     f"MERGE (a)-[r:{rel.relationship_type.value}]->(b) ON CREATE SET r = $props ON MATCH SET r += $props"
                 )
-                queries.append(
-                    (
-                        query,
-                        {
-                            "from_node_id": rel.from_node_id,
-                            "to_node_id": rel.to_node_id,
-                            "props": rel.to_cypher_props(),
-                        },
-                    )
-                )
+                query_params = {
+                    "from_node_id": rel.from_node_id,
+                    "to_node_id": rel.to_node_id,
+                    "props": rel.to_cypher_props(),
+                }
+                queries.append((query, query_params))
+                
+                if i < 3:  # Log first 3 queries for debugging
+                    logger.info(f"🔗 Query {i+1}: {query}")
+                    logger.info(f"🔗 Params {i+1}: {query_params}")
+            
+            logger.info(f"📤 Executing {len(queries)} relationship creation queries...")
             results = await manager.execute_batch_transactions(queries)
-            return len(results)
+            
+            # Return the number of relationships we attempted to create since MERGE doesn't return results
+            relationships_created = len(relationships)
+            logger.info(f"✅ Relationship batch creation completed: {relationships_created} relationships processed")
+            return relationships_created
+            
         except Exception as e:
-            logger.error(f"Failed to create relationships in batch: {e}", exc_info=True)
+            logger.error(f"❌ Failed to create relationships in batch: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             raise
 
 

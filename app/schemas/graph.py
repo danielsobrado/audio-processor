@@ -40,7 +40,20 @@ class GraphNode:
 
     def to_cypher_props(self) -> Dict[str, Any]:
         """Convert to Cypher-compatible properties."""
-        props = self.properties.copy()
+        import json
+        
+        props = {}
+        
+        # Handle nested objects by converting them to JSON strings
+        for key, value in self.properties.items():
+            if isinstance(value, (dict, list)) and value:  # Only convert non-empty dicts/lists
+                props[key] = json.dumps(value)
+            elif isinstance(value, (dict, list)) and not value:  # Handle empty dicts/lists
+                props[key] = None  # Store as null instead of empty object
+            else:
+                props[key] = value
+        
+        # Add base properties
         props.update(
             {
                 "id": self.id,
@@ -195,7 +208,20 @@ class GraphRelationship:
 
     def to_cypher_props(self) -> Dict[str, Any]:
         """Convert to Cypher-compatible properties."""
-        props = self.properties.copy()
+        import json
+        
+        props = {}
+        
+        # Handle nested objects by converting them to JSON strings
+        for key, value in self.properties.items():
+            if isinstance(value, (dict, list)) and value:  # Only convert non-empty dicts/lists
+                props[key] = json.dumps(value)
+            elif isinstance(value, (dict, list)) and not value:  # Handle empty dicts/lists
+                props[key] = None  # Store as null instead of empty object
+            else:
+                props[key] = value
+        
+        # Add base properties
         props.update(
             {
                 "created_at": self.created_at.isoformat(),

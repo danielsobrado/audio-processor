@@ -21,7 +21,8 @@ from app.schemas.graph import (
     TopicNode,
     TranscriptSegmentNode,
 )
-from app.services import graph_service
+from app.services.graph_service import get_graph_service
+from app.core.llm_graph_processors import LLMGraphProcessorFactory
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,40 @@ class GraphProcessor:
         self.settings = get_settings()
         self.topic_keywords = self._load_topic_keywords()
         self.entity_patterns = self._load_entity_patterns()
+        
+        # Initialize LLM processors if configured
+        self._init_llm_processors()
+
+    def _init_llm_processors(self):
+        """Initialize LLM processors based on configuration."""
+        try:
+            if self.settings.graph.entity_extraction_method == "llm_based":
+                self.llm_entity_extractor = LLMGraphProcessorFactory.create_entity_extractor(self.settings)
+            else:
+                self.llm_entity_extractor = None
+                
+            if self.settings.graph.topic_extraction_method == "llm_based":
+                self.llm_topic_modeler = LLMGraphProcessorFactory.create_topic_modeler(self.settings)
+            else:
+                self.llm_topic_modeler = None
+                
+            if self.settings.graph.sentiment_analysis_enabled:
+                self.llm_sentiment_analyzer = LLMGraphProcessorFactory.create_sentiment_analyzer(self.settings)
+            else:
+                self.llm_sentiment_analyzer = None
+                
+            if self.settings.graph.relationship_extraction_method == "llm_based":
+                self.llm_relationship_extractor = LLMGraphProcessorFactory.create_relationship_extractor(self.settings)
+            else:
+                self.llm_relationship_extractor = None
+                
+        except Exception as e:
+            logger.warning(f"Failed to initialize LLM processors: {e}")
+            # Fallback to rule-based methods
+            self.llm_entity_extractor = None
+            self.llm_topic_modeler = None
+            self.llm_sentiment_analyzer = None
+            self.llm_relationship_extractor = None
 
     def _load_topic_keywords(self) -> Dict[str, List[str]]:
         """Load topic classification keywords from configuration."""
@@ -89,6 +124,8 @@ class GraphProcessor:
         self, transcription_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Main processing function for transcription results."""
+        logger.info(f"🔍 Starting graph processing with enabled={self.settings.graph.enabled}")
+        
         if not self.settings.graph.enabled:
             logger.debug("Graph processing is disabled")
             return {"success": True, "message": "Graph processing is disabled"}
@@ -100,19 +137,28 @@ class GraphProcessor:
             language = transcription_data.get("language", "en")
             segments = transcription_data.get("segments", [])
 
+            logger.info(f"📊 Processing conversation_id={conversation_id}, segments={len(segments)}")
+
             if not conversation_id or not segments:
                 logger.warning("Invalid transcription data for graph processing")
                 return {"success": False, "error": "Invalid data"}
 
             # Process graph data
+            logger.info("🔄 Extracting graph data...")
             graph_data = await self._extract_graph_data(
                 conversation_id, audio_file_id, language, segments
             )
 
+            logger.info(f"📈 Graph data extracted: {len(graph_data.get('speakers', {}))} speakers, "
+                       f"{len(graph_data.get('topics', {}))} topics, "
+                       f"{len(graph_data.get('entities', {}))} entities, "
+                       f"{len(graph_data.get('transcript_segments', {}))} segments")
+
             # Create graph structure
+            logger.info("🚀 Creating graph structure...")
             result = await self._create_graph_structure(graph_data)
 
-            logger.info(f"Processed graph for conversation {conversation_id}")
+            logger.info(f"✅ Processed graph for conversation {conversation_id}")
             return {
                 "success": True,
                 "conversation_id": conversation_id,
@@ -122,7 +168,9 @@ class GraphProcessor:
             }
 
         except Exception as e:
-            logger.error(f"Graph processing failed: {e}")
+            logger.error(f"❌ Graph processing failed: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return {"success": False, "error": str(e)}
 
     async def _extract_graph_data(
@@ -182,8 +230,27 @@ class GraphProcessor:
             speaker_stats[speaker_id]["time"] += duration
             speaker_stats[speaker_id]["turns"] += 1
 
+            # Add sentiment analysis if enabled
+            if self.settings.graph.sentiment_analysis_enabled and self.llm_sentiment_analyzer:
+                try:
+                    logger.debug(f"Analyzing sentiment for segment: {text[:50]}...")
+                    sentiment_data = await self.llm_sentiment_analyzer.analyze_sentiment(text)
+                    
+                    # Add sentiment data to segment properties
+                    transcript_segments[segment_id].properties.update({
+                        "sentiment": sentiment_data.get("sentiment", "neutral"),
+                        "sentiment_confidence": sentiment_data.get("confidence", 0.5),
+                        "emotions": sentiment_data.get("emotions", []),
+                        "sentiment_intensity": sentiment_data.get("intensity", 0.5)
+                    })
+                    
+                    logger.debug(f"Sentiment analysis result: {sentiment_data}")
+                    
+                except Exception as e:
+                    logger.error(f"Sentiment analysis failed for segment: {e}")
+
             # Extract topics from text
-            segment_topics = self._extract_topics(text)
+            segment_topics = await self._extract_topics(text)
             for topic_name, confidence_score in segment_topics:
                 topic_id = self._generate_topic_id(topic_name)
                 if topic_id not in topics:
@@ -196,7 +263,7 @@ class GraphProcessor:
                 topic_mentions[topic_id] += 1
 
             # Extract entities from text
-            segment_entities = self._extract_entities(text)
+            segment_entities = await self._extract_entities(text)
             for entity_text, entity_type, confidence_score in segment_entities:
                 entity_id = self._generate_entity_id(entity_text, entity_type)
                 if entity_id not in entities:
@@ -251,8 +318,55 @@ class GraphProcessor:
             "segments_data": segments,  # Keep original for relationship creation
         }
 
-    def _extract_topics(self, text: str) -> List[Tuple[str, float]]:
-        """Extract topics from text using keyword matching."""
+    async def _extract_topics(self, text: str) -> List[Tuple[str, float]]:
+        """Extract topics from text using configured method."""
+        method = self.settings.graph.topic_extraction_method
+        
+        if method == "llm_based" and self.llm_topic_modeler:
+            logger.debug(f"Using LLM-based topic extraction for text: {text[:50]}...")
+            try:
+                return await self.llm_topic_modeler.extract_topics(text)
+            except Exception as e:
+                logger.error(f"LLM topic extraction failed, falling back to keywords: {e}")
+                return self._extract_topics_keywords(text)
+        
+        elif method == "hybrid" and self.llm_topic_modeler:
+            # Combine keyword and LLM results
+            logger.debug(f"Using hybrid topic extraction for text: {text[:50]}...")
+            try:
+                keyword_topics = self._extract_topics_keywords(text)
+                llm_topics = await self.llm_topic_modeler.extract_topics(text)
+                
+                # Merge results, combining confidence scores for duplicate topics
+                combined_topics = {}
+                
+                # Add keyword topics
+                for topic_name, confidence in keyword_topics:
+                    combined_topics[topic_name.lower()] = (topic_name, confidence)
+                
+                # Add LLM topics (may enhance keyword ones)
+                for topic_name, confidence in llm_topics:
+                    key = topic_name.lower()
+                    if key in combined_topics:
+                        # Average the confidence scores
+                        existing_confidence = combined_topics[key][1]
+                        new_confidence = (existing_confidence + confidence) / 2
+                        combined_topics[key] = (topic_name, new_confidence)
+                    else:
+                        combined_topics[key] = (topic_name, confidence)
+                
+                return list(combined_topics.values())
+                
+            except Exception as e:
+                logger.error(f"Hybrid topic extraction failed, falling back to keywords: {e}")
+                return self._extract_topics_keywords(text)
+        
+        else:
+            # Default to keyword-based extraction
+            return self._extract_topics_keywords(text)
+
+    def _extract_topics_keywords(self, text: str) -> List[Tuple[str, float]]:
+        """Extract topics from text using keyword matching (original method)."""
         text_lower = text.lower()
         topics = []
 
@@ -264,8 +378,50 @@ class GraphProcessor:
 
         return topics
 
-    def _extract_entities(self, text: str) -> List[Tuple[str, str, float]]:
-        """Extract entities from text using pattern matching."""
+    async def _extract_entities(self, text: str) -> List[Tuple[str, str, float]]:
+        """Extract entities from text using configured method."""
+        method = self.settings.graph.entity_extraction_method
+        
+        if method == "llm_based" and self.llm_entity_extractor:
+            logger.debug(f"Using LLM-based entity extraction for text: {text[:50]}...")
+            try:
+                return await self.llm_entity_extractor.extract_entities(text)
+            except Exception as e:
+                logger.error(f"LLM entity extraction failed, falling back to regex: {e}")
+                return self._extract_entities_regex(text)
+        
+        elif method == "hybrid" and self.llm_entity_extractor:
+            # Combine regex and LLM results
+            logger.debug(f"Using hybrid entity extraction for text: {text[:50]}...")
+            try:
+                regex_entities = self._extract_entities_regex(text)
+                llm_entities = await self.llm_entity_extractor.extract_entities(text)
+                
+                # Merge results, preferring LLM results for overlapping entities
+                combined_entities = {}
+                
+                # Add regex entities
+                for entity_text, entity_type, confidence in regex_entities:
+                    key = (entity_text.lower(), entity_type)
+                    combined_entities[key] = (entity_text, entity_type, confidence)
+                
+                # Add LLM entities (may override regex ones)
+                for entity_text, entity_type, confidence in llm_entities:
+                    key = (entity_text.lower(), entity_type)
+                    combined_entities[key] = (entity_text, entity_type, confidence)
+                
+                return list(combined_entities.values())
+                
+            except Exception as e:
+                logger.error(f"Hybrid entity extraction failed, falling back to regex: {e}")
+                return self._extract_entities_regex(text)
+        
+        else:
+            # Default to regex-based extraction
+            return self._extract_entities_regex(text)
+
+    def _extract_entities_regex(self, text: str) -> List[Tuple[str, str, float]]:
+        """Extract entities from text using pattern matching (original method)."""
         entities = []
 
         for entity_type, pattern in self.entity_patterns.items():
@@ -295,33 +451,66 @@ class GraphProcessor:
     ) -> Dict[str, Any]:
         """Create all nodes and relationships in the graph."""
         start_time = datetime.utcnow()
+        logger.info("🔧 Building graph structure...")
 
         # Collect all nodes
         all_nodes = []
         all_relationships = []
 
         # Add conversation node
-        all_nodes.append(graph_data["conversation"])
+        conversation_node = graph_data["conversation"]
+        all_nodes.append(conversation_node)
+        logger.info(f"📝 Added conversation node: {conversation_node.id}")
 
         # Add all other nodes
-        all_nodes.extend(graph_data["speakers"].values())
-        all_nodes.extend(graph_data["topics"].values())
-        all_nodes.extend(graph_data["entities"].values())
-        all_nodes.extend(graph_data["transcript_segments"].values())
+        speakers = list(graph_data["speakers"].values())
+        topics = list(graph_data["topics"].values())
+        entities = list(graph_data["entities"].values())
+        segments = list(graph_data["transcript_segments"].values())
+        
+        all_nodes.extend(speakers)
+        all_nodes.extend(topics)
+        all_nodes.extend(entities)
+        all_nodes.extend(segments)
+        
+        logger.info(f"📊 Total nodes prepared: {len(all_nodes)} "
+                   f"(speakers: {len(speakers)}, topics: {len(topics)}, "
+                   f"entities: {len(entities)}, segments: {len(segments)})")
 
         # Create relationships
-        relationships = self._create_relationships(graph_data)
+        logger.info("🔗 Creating relationships...")
+        relationships = await self._create_relationships(graph_data)
         all_relationships.extend(relationships)
+        
+        logger.info(f"📈 Total relationships prepared: {len(all_relationships)}")
+
+        # Show some sample data for debugging
+        if all_nodes:
+            sample_node = all_nodes[0]
+            logger.info(f"📋 Sample node: {sample_node.id}, type: {sample_node.node_type}")
+            logger.info(f"📋 Sample node props: {sample_node.to_cypher_props()}")
+        
+        if all_relationships:
+            sample_rel = all_relationships[0]
+            logger.info(f"🔗 Sample relationship: {sample_rel.from_node_id} -> {sample_rel.to_node_id}")
+            logger.info(f"🔗 Sample relationship props: {sample_rel.to_cypher_props()}")
 
         # Batch create nodes and relationships
         try:
-            graph_service_instance = graph_service.get_graph_service()
+            logger.info("🚀 Getting graph service...")
+            graph_service_instance = get_graph_service()
+            
+            logger.info("📤 Creating nodes batch...")
             nodes_created = await graph_service_instance.create_nodes_batch(all_nodes)
+            logger.info(f"✅ Nodes created: {nodes_created}")
+            
+            logger.info("📤 Creating relationships batch...")
             relationships_created = (
                 await graph_service_instance.create_relationships_batch(
                     all_relationships
                 )
             )
+            logger.info(f"✅ Relationships created: {relationships_created}")
 
             processing_time = (datetime.utcnow() - start_time).total_seconds()
 
@@ -332,10 +521,12 @@ class GraphProcessor:
             }
 
         except Exception as e:
-            logger.error(f"Failed to create graph structure: {e}")
+            logger.error(f"❌ Failed to create graph structure: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             raise
 
-    def _create_relationships(
+    async def _create_relationships(
         self, graph_data: Dict[str, Any]
     ) -> List[GraphRelationship]:
         """Create all relationships between nodes."""
@@ -399,7 +590,7 @@ class GraphProcessor:
                 )
 
             # Topic relationships
-            segment_topics = self._extract_topics(text)
+            segment_topics = await self._extract_topics(text)
             for topic_name, confidence in segment_topics:
                 topic_id = self._generate_topic_id(topic_name)
                 if topic_id in topics:
@@ -414,7 +605,7 @@ class GraphProcessor:
                     )
 
             # Entity relationships
-            segment_entities = self._extract_entities(text)
+            segment_entities = await self._extract_entities(text)
             for entity_text, entity_type, confidence in segment_entities:
                 entity_id = self._generate_entity_id(entity_text, entity_type)
                 if entity_id in entities:
