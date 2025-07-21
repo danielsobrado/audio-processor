@@ -5,8 +5,7 @@ Follows Omi's API patterns for audio processing.
 
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
@@ -39,13 +38,11 @@ router = APIRouter()
 )
 async def transcribe_audio(
     # Audio file upload
-    file: Optional[UploadFile] = File(None, description="Audio file to transcribe"),
+    file: UploadFile | None = File(None, description="Audio file to transcribe"),
     # Audio URL (alternative to file upload)
-    audio_url: Optional[str] = Form(None, description="URL to audio file"),
+    audio_url: str | None = Form(None, description="URL to audio file"),
     # Transcription parameters
-    language: str = Form(
-        "auto", description="Language code (e.g., 'en', 'es', 'auto')"
-    ),
+    language: str = Form("auto", description="Language code (e.g., 'en', 'ar', 'es', 'auto')"),
     model: str = Form("large-v2", description="Whisper model size"),
     # Processing options
     punctuate: bool = Form(True, description="Add punctuation to transcript"),
@@ -55,15 +52,13 @@ async def transcribe_audio(
     # Advanced options
     utt_split: float = Form(0.8, description="Utterance split threshold"),
     translate: bool = Form(False, description="Translate to a target language"),
-    target_language: Optional[str] = Form(
+    target_language: str | None = Form(
         None,
-        description="The target language for translation (e.g., 'es', 'fr'). Required if translate=True.",
+        description="The target language for translation (e.g., 'es', 'ar', 'fr'). Required if translate=True.",
     ),
     summarize: bool = Form(False, description="Generate summary"),
     # Webhook for completion notification
-    callback_url: Optional[str] = Form(
-        None, description="Webhook URL for completion notification"
-    ),
+    callback_url: str | None = Form(None, description="Webhook URL for completion notification"),
     # Dependencies
     user_id: str = Depends(get_current_user_id),
     transcription_service: TranscriptionService = Depends(get_transcription_service),
@@ -150,9 +145,7 @@ async def transcribe_audio(
             filename = file.filename
             file.content_type
 
-            logger.info(
-                f"File upload: {filename} saved to {temp_file_path} for user {user_id}"
-            )
+            logger.info(f"File upload: {filename} saved to {temp_file_path} for user {user_id}")
 
             # Pass file path instead of data to avoid memory issues
             audio_data = None
@@ -184,7 +177,7 @@ async def transcribe_audio(
         task_data = request.dict()
         if file:
             task_data["audio_file_path"] = audio_file_path
-        
+
         # Add graph processing configuration
         task_data["enable_graph_processing"] = settings.graph.enabled
 
@@ -202,7 +195,7 @@ async def transcribe_audio(
         return TranscriptionResponse(
             request_id=request_id,
             status="queued",
-            created=datetime.now(timezone.utc),
+            created=datetime.now(UTC),
             message="Audio submitted for processing",
         )
 
@@ -211,9 +204,7 @@ async def transcribe_audio(
 
         # Update job status if created
         try:
-            await job_queue.update_job(
-                request_id, status=JobStatus.FAILED, error=str(e)
-            )
+            await job_queue.update_job(request_id, status=JobStatus.FAILED, error=str(e))
         except Exception:
             pass
 
@@ -247,15 +238,11 @@ async def cancel_job(
     # Get job from queue
     job = await job_queue.get_job(request_id)
     if not job:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Job not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
     # Check user access
     if str(job.user_id) != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     # Check if job can be cancelled
     if job.status in [JobStatus.COMPLETED, JobStatus.FAILED]:
@@ -272,9 +259,7 @@ async def cancel_job(
             celery_app.control.revoke(job.task_id, terminate=True)
 
         # Update job status
-        await job_queue.update_job(
-            request_id, status=JobStatus.FAILED, error="Cancelled by user"
-        )
+        await job_queue.update_job(request_id, status=JobStatus.FAILED, error="Cancelled by user")
 
         logger.info(f"Job {request_id} cancelled by user {user_id}")
 
@@ -292,22 +277,27 @@ async def cancel_job(
     description="Get list of transcription jobs for the current user",
 )
 async def list_user_jobs(
-    limit: int = 50,
-    offset: int = 0,
-    status_filter: Optional[str] = None,
+    limit: int | None = None,
+    offset: int | None = None,
+    status_filter: str | None = None,
     user_id: str = Depends(get_current_user_id),
     job_queue: JobQueue = Depends(get_job_queue),
+    settings: Settings = Depends(get_settings_dependency),
 ):
     """List transcription jobs for the current user."""
 
-    # Validate parameters
-    if limit > 100:
-        limit = 100
-    if limit < 1:
-        limit = 1
+    # Use settings for defaults
+    final_limit = limit if limit is not None else settings.api.default_limit
+    final_offset = offset if offset is not None else settings.api.default_offset
 
-    if offset < 0:
-        offset = 0
+    # Validate parameters
+    if final_limit > settings.api.max_limit:
+        final_limit = settings.api.max_limit
+    if final_limit < 1:
+        final_limit = 1
+
+    if final_offset < 0:
+        final_offset = 0
 
     # Validate status filter
     valid_statuses = [status.value for status in JobStatus]
@@ -320,8 +310,8 @@ async def list_user_jobs(
     try:
         jobs = await job_queue.list_user_jobs(
             user_id=user_id,
-            limit=limit,
-            offset=offset,
+            limit=final_limit,
+            offset=final_offset,
             status_filter=JobStatus(status_filter) if status_filter else None,
         )
 
@@ -336,8 +326,8 @@ async def list_user_jobs(
                 }
                 for job in jobs
             ],
-            "limit": limit,
-            "offset": offset,
+            "limit": final_limit,
+            "offset": final_offset,
         }
 
     except Exception as e:

@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from app.config.settings import get_settings
 from app.db.graph_session import get_graph_db_manager
@@ -18,7 +18,7 @@ class TopicGraphService:
         self.settings = get_settings()
         self.batch_size = self.settings.graph.processing_batch_size
 
-    async def create_topic(self, topic_data: Dict[str, Any]) -> bool:
+    async def create_topic(self, topic_data: dict[str, Any]) -> bool:
         """Create a topic node in the graph."""
         if not self.settings.graph.enabled:
             logger.debug("Graph processing is disabled")
@@ -61,7 +61,7 @@ class TopicGraphService:
             return False
 
     async def link_speaker_to_topic(
-        self, speaker_id: str, topic_id: str, discussion_stats: Dict[str, Any]
+        self, speaker_id: str, topic_id: str, discussion_stats: dict[str, Any]
     ) -> bool:
         """Link a speaker to a topic with discussion statistics."""
         if not self.settings.graph.enabled:
@@ -106,7 +106,7 @@ class TopicGraphService:
             logger.error(f"Failed to link speaker to topic: {e}")
             return False
 
-    async def get_topic_profile(self, topic_id: str) -> Dict[str, Any]:
+    async def get_topic_profile(self, topic_id: str) -> dict[str, Any]:
         """Get comprehensive topic profile with statistics."""
         if not self.settings.graph.enabled:
             return {}
@@ -125,9 +125,7 @@ class TopicGraphService:
                    collect(DISTINCT s.name) as discussing_speakers
             """
 
-            result = await manager.execute_read_transaction(
-                query, {"topic_id": topic_id}
-            )
+            result = await manager.execute_read_transaction(query, {"topic_id": topic_id})
 
             if result:
                 data = result[0]
@@ -149,9 +147,7 @@ class TopicGraphService:
             logger.error(f"Failed to get topic profile: {e}")
             return {}
 
-    async def get_topic_flow_in_conversation(
-        self, conversation_id: str
-    ) -> List[Dict[str, Any]]:
+    async def get_topic_flow_in_conversation(self, conversation_id: str) -> list[dict[str, Any]]:
         """Get topic flow and transitions within a specific conversation."""
         if not self.settings.graph.enabled:
             return []
@@ -186,9 +182,7 @@ class TopicGraphService:
             logger.error(f"Failed to get topic flow: {e}")
             return []
 
-    async def get_global_topic_transitions(
-        self, limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    async def get_global_topic_transitions(self, limit: int = 50) -> list[dict[str, Any]]:
         """Get most common topic transitions across all conversations."""
         if not self.settings.graph.enabled:
             return []
@@ -218,9 +212,7 @@ class TopicGraphService:
             logger.error(f"Failed to get global topic transitions: {e}")
             return []
 
-    async def get_topic_cooccurrence(
-        self, topic_id: str, limit: int = 20
-    ) -> List[Dict[str, Any]]:
+    async def get_topic_cooccurrence(self, topic_id: str, limit: int = 20) -> list[dict[str, Any]]:
         """Get topics that frequently occur together with the specified topic."""
         if not self.settings.graph.enabled:
             return []
@@ -254,7 +246,7 @@ class TopicGraphService:
 
     async def get_trending_topics(
         self, time_window_hours: int = 24, limit: int = 10
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get trending topics based on recent activity."""
         if not self.settings.graph.enabled:
             return []
@@ -286,9 +278,7 @@ class TopicGraphService:
             logger.error(f"Failed to get trending topics: {e}")
             return []
 
-    async def analyze_topic_sentiment_by_speaker(
-        self, topic_id: str
-    ) -> List[Dict[str, Any]]:
+    async def analyze_topic_sentiment_by_speaker(self, topic_id: str) -> list[dict[str, Any]]:
         """Analyze how different speakers discuss a specific topic."""
         if not self.settings.graph.enabled:
             return []
@@ -308,9 +298,7 @@ class TopicGraphService:
             ORDER BY r.mention_count DESC
             """
 
-            result = await manager.execute_read_transaction(
-                query, {"topic_id": topic_id}
-            )
+            result = await manager.execute_read_transaction(query, {"topic_id": topic_id})
 
             return result
 
@@ -318,7 +306,7 @@ class TopicGraphService:
             logger.error(f"Failed to analyze topic sentiment by speaker: {e}")
             return []
 
-    async def get_topic_evolution(self, topic_id: str) -> Dict[str, Any]:
+    async def get_topic_evolution(self, topic_id: str) -> dict[str, Any]:
         """Track how a topic evolves over time across conversations."""
         if not self.settings.graph.enabled:
             return {}
@@ -337,9 +325,7 @@ class TopicGraphService:
             ORDER BY c.created_at ASC
             """
 
-            result = await manager.execute_read_transaction(
-                query, {"topic_id": topic_id}
-            )
+            result = await manager.execute_read_transaction(query, {"topic_id": topic_id})
 
             evolution_data = {
                 "topic_id": topic_id,
@@ -348,9 +334,7 @@ class TopicGraphService:
                     "total_conversations": len(result),
                     "total_mentions": sum(r["mention_count"] for r in result),
                     "avg_mentions_per_conversation": (
-                        sum(r["mention_count"] for r in result) / len(result)
-                        if result
-                        else 0
+                        sum(r["mention_count"] for r in result) / len(result) if result else 0
                     ),
                 },
             }
@@ -361,9 +345,7 @@ class TopicGraphService:
             logger.error(f"Failed to get topic evolution: {e}")
             return {}
 
-    async def find_topic_clusters(
-        self, min_cluster_size: int = 3
-    ) -> List[Dict[str, Any]]:
+    async def find_topic_clusters(self, min_cluster_size: int = 3) -> list[dict[str, Any]]:
         """Find clusters of related topics based on cooccurrence patterns."""
         if not self.settings.graph.enabled:
             return []

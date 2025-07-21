@@ -7,12 +7,10 @@ local user records when authenticated users access the API for the first time.
 
 import asyncio
 import logging
-from typing import Optional
 
 from app.api.dependencies import CurrentUser
 from app.db import crud
 from app.db.session import AsyncSessionLocal
-from app.schemas.database import User
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -63,7 +61,7 @@ async def simulate_jit_provisioning():
                     db, token_data=mock_token_user
                 )
 
-                logger.info(f"✓ User created successfully!")
+                logger.info("✓ User created successfully!")
                 logger.info(f"  Database ID: {new_user.id}")
                 logger.info(f"  Email: {new_user.email}")
                 logger.info(f"  Full Name: {new_user.full_name}")
@@ -119,7 +117,7 @@ async def simulate_profile_update():
                 db, db_obj=db_user, obj_in=update_data
             )
 
-            logger.info(f"✓ Profile updated successfully!")
+            logger.info("✓ Profile updated successfully!")
             logger.info(f"  Full Name: {updated_user.full_name}")
             logger.info(f"  Active: {updated_user.is_active}")
             logger.info(f"  Updated: {updated_user.updated_at}")

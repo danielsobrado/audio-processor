@@ -10,7 +10,7 @@ The "test cases are not reading the .env properly" was a **Pydantic v2 compatibi
 - **Simplified imports**: Removed complex fallback, direct import from `pydantic-settings`
 - **Error resolved**: `PydanticImportError` no longer occurs
 
-### 2. Environment File Format Issues ✅  
+### 2. Environment File Format Issues ✅
 - **Fixed .env.test**: Changed JSON arrays `["localhost", "127.0.0.1"]` to comma-separated `localhost,127.0.0.1`
 - **Fixed .env.example**: Removed unnecessary quotes from list fields
 - **Consistent format**: All list fields now use comma-separated values for proper parsing
@@ -39,7 +39,7 @@ The "test cases are not reading the .env properly" was a **Pydantic v2 compatibi
 
 ### All Test Scripts Updated (7 files)
 - **`scripts/run-tests.bat`** - Windows Command Prompt runner (uv)
-- **`scripts/run-tests.sh`** - Linux/WSL bash runner (uv)  
+- **`scripts/run-tests.sh`** - Linux/WSL bash runner (uv)
 - **`scripts/run-tests.ps1`** - PowerShell runner (uv)
 - **`scripts/test-quick.bat`** - Windows quick tests (uv)
 - **`scripts/test-quick.sh`** - Linux quick tests (uv)
@@ -66,7 +66,7 @@ poetry install
 poetry run pytest
 poetry run uvicorn app.main:app --reload
 
-# After  
+# After
 uv sync --dev
 uv run pytest
 uv run uvicorn app.main:app --reload
@@ -94,7 +94,7 @@ uv run uvicorn app.main:app --reload
 
 The complete migration is **finished and documented**. All aspects covered:
 - ✅ **Pydantic v2 compatibility** - Import errors resolved
-- ✅ **Environment configuration** - Files formatted correctly  
+- ✅ **Environment configuration** - Files formatted correctly
 - ✅ **Dependency management** - uv working with 62 packages
 - ✅ **Test infrastructure** - Scripts updated and functional
 - ✅ **Project organization** - Modern configuration with pyproject.toml

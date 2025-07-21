@@ -2,10 +2,9 @@
 Integration tests for admin endpoints with authentication and database.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import MagicMock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -147,8 +146,8 @@ class TestAdminEndpointsIntegration:
             mock_job.user_id = "user-123"
             mock_job.status.value = "completed"
             mock_job.progress = 100.0
-            mock_job.created_at = datetime.now(timezone.utc)
-            mock_job.updated_at = datetime.now(timezone.utc)
+            mock_job.created_at = datetime.now(UTC)
+            mock_job.updated_at = datetime.now(UTC)
             mock_job.result = {"transcript": "Hello world"}
             mock_job.error = None
             mock_job.task_id = "task-456"

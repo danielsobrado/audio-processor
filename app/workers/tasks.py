@@ -5,13 +5,15 @@ Celery background tasks for audio processing.
 import asyncio
 import logging
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import httpx
 
-# --- BEGIN: Import Strategies ---
+from app.core.job_queue import JobQueue
+
+# Import Strategies
 from app.core.processing_strategies import (
     FormattingStrategy,
     GraphProcessingStrategy,
@@ -20,9 +22,6 @@ from app.core.processing_strategies import (
     TranscriptionStrategy,
     TranslationStrategy,
 )
-# --- END: Import Strategies ---
-
-from app.core.job_queue import JobQueue
 from app.schemas.database import JobStatus
 from app.workers.celery_app import celery_app
 
@@ -30,11 +29,11 @@ logger = logging.getLogger(__name__)
 
 
 async def _send_callback_notification(
-    callback_url: Optional[str],
+    callback_url: str | None,
     request_id: str,
     status: str,
-    result: Optional[Dict[str, Any]] = None,
-    error: Optional[str] = None,
+    result: dict[str, Any] | None = None,
+    error: str | None = None,
 ) -> None:
     """
     Send HTTP POST notification to callback URL.
@@ -50,15 +49,13 @@ async def _send_callback_notification(
         return
 
     try:
-        logger.info(
-            f"Sending callback notification for job {request_id} to {callback_url}"
-        )
+        logger.info(f"Sending callback notification for job {request_id} to {callback_url}")
 
         # Prepare callback payload
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "request_id": request_id,
             "status": status,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         if status == "completed" and result:
@@ -78,8 +75,9 @@ async def _send_callback_notification(
             # Log response for debugging
             if response.is_success:
                 logger.info(
-                    f"Callback notification sent successfully for job {
-                        request_id}: {response.status_code}"
+                    f"Callback notification sent successfully for job {request_id}: {
+                        response.status_code
+                    }"
                 )
             else:
                 logger.warning(
@@ -88,9 +86,7 @@ async def _send_callback_notification(
                 )
 
     except httpx.TimeoutException:
-        logger.error(
-            f"Callback notification timed out for job {request_id} to {callback_url}"
-        )
+        logger.error(f"Callback notification timed out for job {request_id} to {callback_url}")
     except httpx.RequestError as e:
         logger.error(f"Callback notification request failed for job {request_id}: {e}")
     except Exception as e:
@@ -100,23 +96,22 @@ async def _send_callback_notification(
         )
 
 
-# --- BEGIN: Update Task Decorator for Retries ---
+# Update Task Decorator for Retries ---
 @celery_app.task(
     bind=True,
     name="audio_processor.workers.tasks.process_audio",
     autoretry_for=(Exception,),  # Retry on any standard exception
-    retry_kwargs={'max_retries': 3},  # Retry a maximum of 3 times
+    retry_kwargs={"max_retries": 3},  # Retry a maximum of 3 times
     retry_backoff=True,  # Enable exponential backoff (e.g., 2s, 4s, 8s)
     retry_backoff_max=600,  # Cap backoff delay at 10 minutes
     task_acks_late=True,  # Ensure task is only ack'd on success
     # Don't retry on certain exceptions that indicate permanent failure
     dont_autoretry_for=(ValueError, FileNotFoundError, KeyError),
 )
-# --- END: Update Task Decorator for Retries ---
-def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = None):
+def process_audio_async(self, request_data: dict, audio_data: bytes | None = None):
     """
     Celery task to process audio files using a strategy-based pipeline.
-    
+
     Args:
         request_data: Dictionary containing transcription request details.
         audio_data: Raw audio data for file-based uploads.
@@ -132,7 +127,7 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
         job_queue = JobQueue()
         await job_queue.initialize()
 
-        # --- BEGIN: Idempotency Check ---
+        # --- Idempotency Check ---
         # Check the job status before starting any processing.
         job = await job_queue.get_job(request_id)
         if job is not None:
@@ -142,14 +137,13 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
                     f"Job {request_id} is already completed. Skipping duplicate processing."
                 )
                 return {"status": "skipped_duplicate", "request_id": request_id}
-        # --- END: Idempotency Check ---
-        
+
         audio_path = None  # Initialize to None for cleanup
 
         try:
             logger.info(f"Starting audio processing for job {request_id}")
 
-            # --- BEGIN: Audio Source Handling ---
+            # --- Audio Source Handling ---
             if request_data.get("audio_file_path"):
                 audio_path = Path(request_data["audio_file_path"])
             elif audio_data:
@@ -161,26 +155,27 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".tmp") as temp_file:
                     audio_path = Path(temp_file.name)
                     async with httpx.AsyncClient(timeout=60.0) as client:
-                        async with client.stream("GET", audio_url, follow_redirects=True) as response:
+                        async with client.stream(
+                            "GET", audio_url, follow_redirects=True
+                        ) as response:
                             response.raise_for_status()
                             async for chunk in response.aiter_bytes():
                                 temp_file.write(chunk)
             else:
                 raise ValueError("No audio source provided.")
-            # --- END: Audio Source Handling ---
 
             await job_queue.update_job(request_id, status=JobStatus.PROCESSING, progress=10.0)
 
-            # --- BEGIN: Strategy Pipeline ---
+            # --- Strategy Pipeline ---
             context = ProcessingContext(request_data, audio_path)
-            
+
             # 1. Build the pipeline of strategies based on request
             pipeline = [TranscriptionStrategy(), FormattingStrategy()]
             if request_data.get("summarize"):
                 pipeline.append(SummarizationStrategy())
             if request_data.get("translate"):
                 pipeline.append(TranslationStrategy())
-            
+
             # Graph processing can run in parallel or at the end
             if request_data.get("enable_graph_processing", True):
                 pipeline.append(GraphProcessingStrategy())
@@ -196,8 +191,7 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
 
             # 3. Check for errors from the pipeline
             if context.is_failed():
-                raise context.error if context.error else RuntimeError("Unknown processing error")
-            # --- END: Strategy Pipeline ---
+                raise (context.error if context.error else RuntimeError("Unknown processing error"))
 
             # Store final result
             await job_queue.update_job(
@@ -216,7 +210,7 @@ def process_audio_async(self, request_data: dict, audio_data: Optional[bytes] = 
                     status="completed",
                     result=context.deepgram_result,
                 )
-            
+
             return {"status": "completed", "request_id": request_id}
 
         except Exception as e:

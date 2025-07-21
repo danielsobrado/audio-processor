@@ -2,12 +2,10 @@
 Unit tests for the translation service.
 """
 
-import asyncio
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
-from app.config.settings import get_settings
 from app.services.translation import TranslationService
 
 

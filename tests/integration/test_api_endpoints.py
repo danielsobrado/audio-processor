@@ -6,8 +6,6 @@ import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
 
-from app.main import app
-
 
 @pytest.mark.asyncio
 async def test_health_check(app: FastAPI):

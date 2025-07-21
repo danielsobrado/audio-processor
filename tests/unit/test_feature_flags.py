@@ -7,7 +7,7 @@ contains the proper feature flag checks.
 """
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -196,7 +196,7 @@ class TestFeatureFlagImplementation:
     def test_transcribe_endpoint_has_feature_flag_imports(self):
         """Verify that the transcribe endpoint imports Settings."""
         # Read the transcribe endpoint file and check for correct imports
-        with open("app/api/v1/endpoints/transcribe.py", "r") as f:
+        with open("app/api/v1/endpoints/transcribe.py") as f:
             source = f.read()
 
         # Check that Settings is imported
@@ -208,7 +208,7 @@ class TestFeatureFlagImplementation:
     def test_transcribe_endpoint_has_feature_flag_checks(self):
         """Verify that the transcribe endpoint contains the feature flag checks."""
         # Read the transcribe endpoint file and check for feature flag logic
-        with open("app/api/v1/endpoints/transcribe.py", "r") as f:
+        with open("app/api/v1/endpoints/transcribe.py") as f:
             source = f.read()
 
         # Check for each feature flag check
@@ -230,7 +230,7 @@ class TestFeatureFlagErrorMessages:
     def test_error_message_consistency(self):
         """Verify that error messages follow consistent patterns."""
         # Read the transcribe endpoint to verify error messages
-        with open("app/api/v1/endpoints/transcribe.py", "r") as f:
+        with open("app/api/v1/endpoints/transcribe.py") as f:
             content = f.read()
 
         # All error messages should be descriptive and end with a period
@@ -247,7 +247,7 @@ class TestFeatureFlagErrorMessages:
     def test_http_status_codes_are_appropriate(self):
         """Verify that the correct HTTP status codes are used for different scenarios."""
         # Read the transcribe endpoint to verify status codes
-        with open("app/api/v1/endpoints/transcribe.py", "r") as f:
+        with open("app/api/v1/endpoints/transcribe.py") as f:
             content = f.read()
 
         # File upload and URL processing should use 403 (Forbidden)
@@ -258,7 +258,7 @@ class TestFeatureFlagErrorMessages:
 
     def test_feature_flag_check_order(self):
         """Verify that feature flags are checked in the correct order."""
-        with open("app/api/v1/endpoints/transcribe.py", "r") as f:
+        with open("app/api/v1/endpoints/transcribe.py") as f:
             content = f.read()
 
         # Find the positions of each check

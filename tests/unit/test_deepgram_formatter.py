@@ -2,7 +2,7 @@
 Unit tests for the DeepgramFormatter.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import pytest
 
@@ -81,7 +81,7 @@ def test_validate_deepgram_format_valid(formatter):
     valid_response = {
         "metadata": {
             "request_id": "123",
-            "created": datetime.now(timezone.utc).isoformat(),
+            "created": datetime.now(UTC).isoformat(),
             "duration": 10.0,
             "channels": 1,
         },

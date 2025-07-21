@@ -4,7 +4,6 @@ Configuration script for OpenRouter LLM integration.
 This script helps set up environment variables for OpenRouter testing.
 """
 
-import os
 import sys
 
 
@@ -12,17 +11,17 @@ def create_env_file():
     """Create a .env file with OpenRouter configuration."""
     print("🔧 Creating .env file for OpenRouter configuration")
     print("=" * 50)
-    
+
     # Ask for API key
     api_key = input("Enter your OpenRouter API key (starts with 'sk-or-v1-'): ").strip()
-    
+
     if not api_key:
         print("❌ API key is required!")
         return False
-    
-    if not api_key.startswith('sk-or-v1-'):
+
+    if not api_key.startswith("sk-or-v1-"):
         print("⚠️  Warning: API key doesn't start with 'sk-or-v1-', but proceeding...")
-    
+
     # Choose model
     print("\nAvailable models:")
     models = [
@@ -35,17 +34,17 @@ def create_env_file():
         "meta-llama/llama-2-70b-chat",
         "microsoft/wizardlm-70b",
         "google/palm-2-codechat-bison",
-        "cohere/command-r-plus"
+        "cohere/command-r-plus",
     ]
-    
+
     for i, model in enumerate(models, 1):
         print(f"  {i}. {model}")
-    
+
     choice = input(f"\nChoose model (1-{len(models)}) [1]: ").strip()
-    
+
     if not choice:
         choice = "1"
-    
+
     try:
         model_index = int(choice) - 1
         if 0 <= model_index < len(models):
@@ -56,13 +55,15 @@ def create_env_file():
     except ValueError:
         print("❌ Invalid choice, using default model")
         selected_model = models[0]
-    
+
     # Graph database settings
     print("\nGraph database configuration:")
-    neo4j_url = input("Neo4j URL [bolt://localhost:7687]: ").strip() or "bolt://localhost:7687"
+    neo4j_url = (
+        input("Neo4j URL [bolt://localhost:7687]: ").strip() or "bolt://localhost:7687"
+    )
     neo4j_user = input("Neo4j username [neo4j]: ").strip() or "neo4j"
     neo4j_password = input("Neo4j password [password]: ").strip() or "password"
-    
+
     # Create .env content
     env_content = f"""# OpenRouter LLM Configuration
 OPENROUTER_API_KEY={api_key}
@@ -93,20 +94,22 @@ DEBUG=true
 ENVIRONMENT=development
 LOG_LEVEL=INFO
 """
-    
+
     try:
-        with open('.env', 'w') as f:
+        with open(".env", "w") as f:
             f.write(env_content)
-        
+
         print("✅ .env file created successfully!")
         print("\nTo use this configuration:")
         print("1. Load the environment variables:")
         print("   - Linux/Mac: source .env")
-        print("   - Windows PowerShell: Get-Content .env | ForEach-Object { $name, $value = $_.split('=', 2); Set-Item -Path \"env:$name\" -Value $value }")
+        print(
+            "   - Windows PowerShell: Get-Content .env | ForEach-Object { $name, $value = $_.split('=', 2); Set-Item -Path \"env:$name\" -Value $value }"
+        )
         print("2. Run the test: python test_openrouter_config.py")
-        
+
         return True
-        
+
     except Exception as e:
         print(f"❌ Error creating .env file: {e}")
         return False
@@ -116,31 +119,31 @@ def create_powershell_script():
     """Create a PowerShell script to set environment variables."""
     print("🔧 Creating PowerShell script for environment setup")
     print("=" * 50)
-    
+
     # Ask for API key
     api_key = input("Enter your OpenRouter API key (starts with 'sk-or-v1-'): ").strip()
-    
+
     if not api_key:
         print("❌ API key is required!")
         return False
-    
+
     # Choose model
     print("\nAvailable models:")
     models = [
         "openai/gpt-3.5-turbo",
         "openai/gpt-4",
         "anthropic/claude-3-haiku",
-        "meta-llama/llama-2-70b-chat"
+        "meta-llama/llama-2-70b-chat",
     ]
-    
+
     for i, model in enumerate(models, 1):
         print(f"  {i}. {model}")
-    
+
     choice = input(f"\nChoose model (1-{len(models)}) [1]: ").strip()
-    
+
     if not choice:
         choice = "1"
-    
+
     try:
         model_index = int(choice) - 1
         if 0 <= model_index < len(models):
@@ -149,7 +152,7 @@ def create_powershell_script():
             selected_model = models[0]
     except ValueError:
         selected_model = models[0]
-    
+
     # Create PowerShell script
     ps_content = f"""# OpenRouter LLM Configuration Script
 Write-Host "Setting up OpenRouter environment variables..." -ForegroundColor Green
@@ -189,18 +192,18 @@ Write-Host "  python verify_openrouter_config.py" -ForegroundColor Yellow
 Write-Host "  python test_openrouter_config.py" -ForegroundColor Yellow
 Write-Host "  python test_llm_graph_advanced.py" -ForegroundColor Yellow
 """
-    
+
     try:
-        with open('setup_openrouter.ps1', 'w') as f:
+        with open("setup_openrouter.ps1", "w") as f:
             f.write(ps_content)
-        
+
         print("✅ PowerShell script created successfully!")
         print("\nTo use this script:")
         print("1. Run in PowerShell: .\\setup_openrouter.ps1")
         print("2. Run the test: python test_openrouter_config.py")
-        
+
         return True
-        
+
     except Exception as e:
         print(f"❌ Error creating PowerShell script: {e}")
         return False
@@ -211,14 +214,14 @@ def main():
     print("🚀 OpenRouter Configuration Setup")
     print("=" * 50)
     print()
-    
+
     print("Choose configuration method:")
     print("1. Create .env file")
     print("2. Create PowerShell script")
     print("3. Display manual configuration")
-    
+
     choice = input("\nEnter choice (1-3): ").strip()
-    
+
     if choice == "1":
         create_env_file()
     elif choice == "2":

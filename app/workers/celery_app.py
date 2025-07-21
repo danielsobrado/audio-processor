@@ -1,11 +1,9 @@
-import asyncio
 import logging
-from typing import Optional
 
 from celery import Celery
-# --- BEGIN: Import Queue for DLQ ---
+
+# Queue for DLQ
 from kombu import Queue
-# --- END: Import Queue for DLQ ---
 
 from app.config.settings import get_settings
 from app.core.audio_processor import AudioProcessor
@@ -20,19 +18,19 @@ settings = get_settings()
 def create_celery_app() -> Celery:
     """
     Create and configure the Celery application with reliability features.
-    
+
     Features:
     - Automatic retries with exponential backoff
     - Dead letter queue for failed tasks
     - Late acknowledgment to prevent task loss
-    
+
     Queue Management:
     - Default queue: 'default' (for normal tasks)
     - Dead letter queue: 'dead_letter' (for failed tasks)
-    
+
     To monitor queues:
         uv run celery -A app.workers.celery_app inspect active_queues
-    
+
     To process dead letter queue:
         uv run celery -A app.workers.celery_app worker --queues=dead_letter
     """
@@ -57,12 +55,12 @@ def create_celery_app() -> Celery:
         # To monitor dead letter queue: uv run celery -A app.workers.celery_app inspect active_queues
         # To process dead letter queue: uv run celery -A app.workers.celery_app worker --queues=dead_letter
         task_queues=(
-            Queue('default', routing_key='task.#'),
-            Queue('dead_letter', routing_key='dead_letter.#'),
+            Queue("default", routing_key="task.#"),
+            Queue("dead_letter", routing_key="dead_letter.#"),
         ),
-        task_default_queue='default',
-        task_default_exchange='tasks',
-        task_default_routing_key='task.default',
+        task_default_queue="default",
+        task_default_exchange="tasks",
+        task_default_routing_key="task.default",
     )
 
     celery_app.autodiscover_tasks(["app.workers"])
@@ -72,8 +70,8 @@ def create_celery_app() -> Celery:
 celery_app = create_celery_app()
 
 # Global instance for the worker - initialized once per worker process
-audio_processor_instance: Optional[AudioProcessor] = None
-translation_service_instance: Optional[TranslationService] = None
+audio_processor_instance: AudioProcessor | None = None
+translation_service_instance: TranslationService | None = None
 
 
 @celery_app.on_after_configure.connect  # type: ignore[misc]

@@ -11,7 +11,6 @@ from pathlib import Path
 # Add the app directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.config.settings import get_settings
 from app.services.translation import TranslationService
 
 
@@ -53,13 +52,13 @@ async def test_translation():
 
         # Test with longer text
         longer_text = """
-        Welcome to our audio processing service. This platform provides 
-        state-of-the-art speech recognition, speaker diarization, and 
-        translation capabilities. We support multiple languages and can 
+        Welcome to our audio processing service. This platform provides
+        state-of-the-art speech recognition, speaker diarization, and
+        translation capabilities. We support multiple languages and can
         process both uploaded files and URLs.
         """
 
-        print(f"\nTranslating longer text...")
+        print("\nTranslating longer text...")
         translated_longer = await service.translate_text(
             text=longer_text.strip(), target_language=target_language
         )

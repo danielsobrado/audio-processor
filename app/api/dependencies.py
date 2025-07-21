@@ -4,8 +4,8 @@ Compatible with Omi's authentication patterns.
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import httpx
 import jwt
@@ -60,10 +60,10 @@ def get_job_queue(request: Request) -> JobQueue:
     """
     Dependency to get the initialized JobQueue instance.
     """
-    if not hasattr(request.app.state, 'job_queue') or request.app.state.job_queue is None:
+    if not hasattr(request.app.state, "job_queue") or request.app.state.job_queue is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Job queue service not available"
+            detail="Job queue service not available",
         )
     return request.app.state.job_queue
 
@@ -77,8 +77,8 @@ def get_transcription_service(request: Request) -> TranscriptionService:
 
 
 # Cache for JWKS keys
-_jwks_cache: Dict[str, Any] = {}
-_jwks_cache_expiry: Optional[datetime] = None
+_jwks_cache: dict[str, Any] = {}
+_jwks_cache_expiry: datetime | None = None
 
 
 class AuthenticationError(HTTPException):
@@ -102,14 +102,14 @@ class AuthorizationError(HTTPException):
         )
 
 
-async def get_jwks_keys() -> Dict[str, Any]:
+async def get_jwks_keys() -> dict[str, Any]:
     """
     Fetch and cache JWKS keys from Keycloak.
     """
     global _jwks_cache, _jwks_cache_expiry
 
     # Check cache validity (using configurable TTL)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if _jwks_cache and _jwks_cache_expiry and now < _jwks_cache_expiry:
         return _jwks_cache
 
@@ -117,7 +117,7 @@ async def get_jwks_keys() -> Dict[str, Any]:
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 settings.auth.jwks_url,
-                timeout=10.0,
+                timeout=settings.auth.jwks_fetch_timeout,
             )
             response.raise_for_status()
 
@@ -131,13 +131,12 @@ async def get_jwks_keys() -> Dict[str, Any]:
 
             # Update cache using configurable TTL and proper timedelta
             _jwks_cache = keys
-            _jwks_cache_expiry = now + timedelta(
-                seconds=settings.auth.jwks_cache_ttl_seconds
-            )
+            _jwks_cache_expiry = now + timedelta(seconds=settings.auth.jwks_cache_ttl_seconds)
 
             logger.debug(
                 f"JWKS keys cached: {len(keys)} keys for {
-                                         settings.auth.jwks_cache_ttl_seconds} seconds"
+                    settings.auth.jwks_cache_ttl_seconds
+                } seconds"
             )
             return keys
 
@@ -175,12 +174,9 @@ async def verify_jwt_token(token: str) -> dict:
         # If signature verification is disabled (test mode), just decode without verification
         if not settings.auth.verify_signature:
             # Decode without verification for test mode
-            payload = jwt.decode(
-                token,
-                options={"verify_signature": False, "verify_exp": False}
-            )
+            payload = jwt.decode(token, options={"verify_signature": False, "verify_exp": False})
             return payload
-        
+
         # Decode header without verification to get key ID
         unverified_header = jwt.get_unverified_header(token)
 
@@ -221,9 +217,7 @@ async def verify_jwt_token(token: str) -> dict:
 class CurrentUser:
     """User information extracted from JWT token."""
 
-    def __init__(
-        self, user_id: str, username: str, email: str, roles: list, claims: dict
-    ):
+    def __init__(self, user_id: str, username: str, email: str, roles: list, claims: dict):
         self.user_id = user_id
         self.username = username
         self.email = email
@@ -234,13 +228,13 @@ class CurrentUser:
         """Check if user has specific role."""
         return role in self.roles
 
-    def has_any_role(self, roles: List[str]) -> bool:
+    def has_any_role(self, roles: list[str]) -> bool:
         """Check if user has any of the specified roles."""
         return any(role in self.roles for role in roles)
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> CurrentUser:
     """
     Extract and validate current user from JWT token.
@@ -299,7 +293,7 @@ async def get_current_user_id(
     return current_user.user_id
 
 
-def require_roles(required_roles: List[str]):
+def require_roles(required_roles: list[str]):
     """
     Dependency factory for role-based authorization.
 
@@ -317,9 +311,7 @@ def require_roles(required_roles: List[str]):
                 f"Access denied for user {current_user.user_id}: "
                 f"requires {required_roles}, has {current_user.roles}"
             )
-            raise AuthorizationError(
-                f"Access denied. Required roles: {', '.join(required_roles)}"
-            )
+            raise AuthorizationError(f"Access denied. Required roles: {', '.join(required_roles)}")
         return current_user
 
     return check_roles
@@ -354,8 +346,8 @@ def require_scope(required_scope: str):
 
 # Optional authentication for public endpoints
 async def get_optional_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-) -> Optional[CurrentUser]:
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+) -> CurrentUser | None:
     """
     Optional authentication - returns None if no valid token provided.
     """
@@ -398,9 +390,7 @@ class RateLimiter:
                 await self._redis_client.ping()
 
             except Exception as e:
-                logger.warning(
-                    f"Redis connection failed, falling back to in-memory: {e}"
-                )
+                logger.warning(f"Redis connection failed, falling back to in-memory: {e}")
                 self._redis_client = False  # Mark as failed
 
         return self._redis_client if self._redis_client is not False else None
@@ -418,7 +408,7 @@ class RateLimiter:
         """Redis-based rate limiting with sliding window."""
         try:
             key = f"rate_limit:{user_id}"
-            now = datetime.now(timezone.utc).timestamp()
+            now = datetime.now(UTC).timestamp()
             window_start = now - self.window_seconds
 
             # Remove old entries and count current requests
@@ -441,14 +431,12 @@ class RateLimiter:
 
     async def _check_rate_limit_memory(self, user_id: str) -> bool:
         """In-memory rate limiting fallback (not distributed)."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         window_start = now.timestamp() - self.window_seconds
 
         # Clean old entries
         user_requests = self._fallback_requests.get(user_id, [])
-        user_requests = [
-            req_time for req_time in user_requests if req_time > window_start
-        ]
+        user_requests = [req_time for req_time in user_requests if req_time > window_start]
 
         # Check limit
         if len(user_requests) >= self.max_requests:

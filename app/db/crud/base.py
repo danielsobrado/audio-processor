@@ -1,6 +1,6 @@
 """CRUD base class for database operations."""
 
-from typing import Any, Dict, Union
+from typing import Any
 
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
@@ -35,9 +35,7 @@ class CRUDBase:
         await db.refresh(db_obj)
         return db_obj
 
-    async def update(
-        self, db: AsyncSession, *, db_obj, obj_in: Union[BaseModel, Dict[str, Any]]
-    ):
+    async def update(self, db: AsyncSession, *, db_obj, obj_in: BaseModel | dict[str, Any]):
         obj_data = jsonable_encoder(db_obj)
         if isinstance(obj_in, dict):
             update_data = obj_in

@@ -1,4 +1,4 @@
-# Audio Processor - Test Runner for PowerShell
+# Audio Processor - Test Runner for PowerShell (pytest version)
 # Usage: .\run-tests.ps1 [test-type] [options]
 
 param(
@@ -10,7 +10,7 @@ param(
 $env:ENVIRONMENT = "testing"
 $env:PYTHONPATH = $PWD.Path
 
-Write-Host "=== Audio Processor Test Runner (PowerShell) ===" -ForegroundColor Cyan
+Write-Host "=== Audio Processor Test Runner (PowerShell - pytest) ===" -ForegroundColor Cyan
 Write-Host
 
 # Check if .env.test exists
@@ -21,115 +21,150 @@ if (-not (Test-Path ".env.test")) {
     exit 1
 }
 
-# Check if uv is available
-$uvAvailable = $false
-try {
-    uv --version | Out-Null
-    $uvAvailable = $true
-    Write-Host "Using uv environment" -ForegroundColor Green
-    $pytestCmd = "uv run pytest"
-} catch {
-    Write-Host "Using system Python environment" -ForegroundColor Yellow
-    # Check if pytest is available
+# Function to run pytest with common options
+function Run-Pytest {
+    param(
+        [string]$TestPath = "tests/",
+        [string[]]$AdditionalArgs = @()
+    )
+
+    $pytestArgs = @(
+        "run",
+        "pytest",
+        $TestPath,
+        "-v",
+        "--asyncio-mode=auto",
+        "--tb=short",
+        "-s"
+    )
+
+    # Add additional arguments
+    $pytestArgs += $AdditionalArgs
+    $pytestArgs += $ExtraArgs
+
+    Write-Host "Running: uv $($pytestArgs -join ' ')" -ForegroundColor Yellow
+    & uv $pytestArgs
+    return $LASTEXITCODE
+}
+
+# Function to check if Docker services are running
+function Test-DockerServices {
+    Write-Host "Checking Docker services..." -ForegroundColor Yellow
+
+    $services = @("neo4j", "redis", "postgres")
+    $allRunning = $true
+
+    foreach ($service in $services) {
+        try {
+            $result = docker ps --filter "name=$service" --format "{{.Names}}" 2>$null
+            if ($result -match $service) {
+                Write-Host "✅ $service service is running" -ForegroundColor Green
+            } else {
+                Write-Host "❌ $service service is not running" -ForegroundColor Red
+                $allRunning = $false
+            }
+        } catch {
+            Write-Host "❌ Failed to check $service service" -ForegroundColor Red
+            $allRunning = $false
+        }
+    }
+
+    return $allRunning
+}
+
+# Function to check if API server is running
+function Test-ApiServer {
+    Write-Host "Checking API server..." -ForegroundColor Yellow
+
     try {
-        pytest --version | Out-Null
-        $pytestCmd = "pytest"
+        $response = Invoke-RestMethod -Uri "http://localhost:8000/health" -Method Get -TimeoutSec 5
+        if ($response.status -eq "healthy") {
+            Write-Host "✅ API server is running and healthy" -ForegroundColor Green
+            return $true
+        } else {
+            Write-Host "❌ API server is not healthy" -ForegroundColor Red
+            return $false
+        }
     } catch {
-        Write-Host "Error: pytest not found! Please install uv or pytest." -ForegroundColor Red
-        Write-Host "Install uv: https://docs.astral.sh/uv/" -ForegroundColor Yellow
-        exit 1
+        Write-Host "❌ API server is not responding" -ForegroundColor Red
+        return $false
     }
 }
 
-Write-Host "Running tests with environment: $($env:ENVIRONMENT)" -ForegroundColor Cyan
+# Main test execution
+Write-Host "Test Type: $TestType" -ForegroundColor Cyan
 Write-Host
 
-# Function to run tests
-function Invoke-Tests {
-    param([string]$Description, [string[]]$Args)
-    
-    Write-Host $Description -ForegroundColor Blue
-    $command = "$pytestCmd $($Args -join ' ')"
-    
-    try {
-        Invoke-Expression $command
-        $exitCode = $LASTEXITCODE
-        if ($exitCode -eq 0) {
-            Write-Host "✓ Tests completed successfully" -ForegroundColor Green
+$exitCode = 0
+
+switch ($TestType.ToLower()) {
+    "unit" {
+        Write-Host "Running unit tests..." -ForegroundColor Green
+        $exitCode = Run-Pytest -TestPath "tests/unit/" -AdditionalArgs @("-m", "not slow")
+    }
+
+    "integration" {
+        Write-Host "Running integration tests..." -ForegroundColor Green
+        $exitCode = Run-Pytest -TestPath "tests/integration/"
+    }
+
+    "e2e" {
+        Write-Host "Running end-to-end tests..." -ForegroundColor Green
+
+        # Check prerequisites
+        $servicesOk = Test-DockerServices
+        $apiOk = Test-ApiServer
+
+        if (-not $servicesOk -or -not $apiOk) {
+            Write-Host "❌ Prerequisites not met for E2E tests" -ForegroundColor Red
+            Write-Host "Please ensure all services are running before running E2E tests." -ForegroundColor Red
+            $exitCode = 1
         } else {
-            Write-Host "✗ Tests failed" -ForegroundColor Red
+            $exitCode = Run-Pytest -TestPath "tests/e2e/"
         }
-        return $exitCode
-    } catch {
-        Write-Host "✗ Error running tests: $_" -ForegroundColor Red
-        return 1
     }
+
+    "quick" {
+        Write-Host "Running quick tests (unit + integration)..." -ForegroundColor Green
+        $exitCode = Run-Pytest -TestPath "tests/unit/ tests/integration/" -AdditionalArgs @("-m", "not slow")
+    }
+
+    "all" {
+        Write-Host "Running all tests..." -ForegroundColor Green
+
+        # Run unit tests
+        Write-Host "`nRunning unit tests..." -ForegroundColor Yellow
+        $unitResult = Run-Pytest -TestPath "tests/unit/" -AdditionalArgs @("-m", "not slow")
+
+        # Run integration tests
+        Write-Host "`nRunning integration tests..." -ForegroundColor Yellow
+        $integrationResult = Run-Pytest -TestPath "tests/integration/"
+
+        # Run E2E tests if prerequisites are met
+        Write-Host "`nRunning end-to-end tests..." -ForegroundColor Yellow
+        $servicesOk = Test-DockerServices
+        $apiOk = Test-ApiServer
+
+        if ($servicesOk -and $apiOk) {
+            $e2eResult = Run-Pytest -TestPath "tests/e2e/"
+        } else {
+            Write-Host "⚠️  Skipping E2E tests (prerequisites not met)" -ForegroundColor Yellow
+            $e2eResult = 0
+        }
+
+        # Set exit code based on results
+        if ($unitResult -ne 0 -or $integrationResult -ne 0 -or $e2eResult -ne 0) {
+            $exitCode = 1
+        }
+    }
+
+    default {
+        Write-Host "Unknown test type: $TestType" -ForegroundColor Red
+        Write-Host "Available types: unit, integration, e2e, quick, all" -ForegroundColor Yellow
+        $exitCode = 1
 }
 
-# Execute tests based on type
-$exitCode = switch ($TestType.ToLower()) {
-    "all" { 
-        Invoke-Tests "Running all tests..." @("-v")
-    }
-    "unit" { 
-        Invoke-Tests "Running unit tests..." @("-v", "tests/unit/")
-    }
-    "integration" { 
-        Invoke-Tests "Running integration tests..." @("-v", "tests/integration/")
-    }
-    "coverage" { 
-        $result = Invoke-Tests "Running tests with coverage..." @("--cov=app", "--cov-report=html", "--cov-report=term-missing", "-v")
-        # Open coverage report if it exists
-        if (Test-Path "htmlcov/index.html") {
-            Write-Host "Opening coverage report..." -ForegroundColor Cyan
-            Start-Process "htmlcov/index.html"
-        }
-        $result
-    }
-    "fast" { 
-        Invoke-Tests "Running fast tests only..." @("-v", "-m", "`"not slow`"")
-    }
-    "env" { 
-        Invoke-Tests "Running environment tests..." @("-v", "tests/unit/test_environment.py")
-    }
-    "watch" { 
-        Write-Host "Running tests in watch mode..." -ForegroundColor Blue
-        Invoke-Expression "$pytestCmd -f"
-        $LASTEXITCODE
-    }
-    "debug" { 
-        Invoke-Tests "Running tests with debug output..." @("-v", "-s", "--tb=long")
-    }
-    "help" {
-        Write-Host "Audio Processor Test Runner" -ForegroundColor Cyan
-        Write-Host
-        Write-Host "Usage: .\run-tests.ps1 [test-type] [options]"
-        Write-Host
-        Write-Host "Test types:"
-        Write-Host "  all          Run all tests (default)"
-        Write-Host "  unit         Run unit tests only"
-        Write-Host "  integration  Run integration tests only"
-        Write-Host "  coverage     Run tests with coverage report"
-        Write-Host "  fast         Run tests excluding slow ones"
-        Write-Host "  env          Run environment configuration tests"
-        Write-Host "  watch        Run tests in watch mode"
-        Write-Host "  debug        Run tests with verbose debug output"
-        Write-Host "  help         Show this help message"
-        Write-Host
-        Write-Host "Examples:"
-        Write-Host "  .\run-tests.ps1                    # Run all tests"
-        Write-Host "  .\run-tests.ps1 unit               # Run unit tests"
-        Write-Host "  .\run-tests.ps1 coverage           # Run with coverage"
-        return 0
-    }
-    default { 
-        Write-Host "Running custom test: $TestType $($ExtraArgs -join ' ')" -ForegroundColor Yellow
-        $allArgs = @($TestType) + $ExtraArgs
-        Invoke-Expression "$pytestCmd $($allArgs -join ' ')"
-        $LASTEXITCODE
-    }
-}
-
+# Final output
 Write-Host
 if ($exitCode -eq 0) {
     Write-Host "=== All tests passed! ===" -ForegroundColor Green

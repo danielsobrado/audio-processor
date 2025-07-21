@@ -18,7 +18,7 @@ GET /api/v1/health
   "status": "ok|warning|error",
   "dependencies": {
     "database": "ok|error",
-    "redis": "ok|error", 
+    "redis": "ok|error",
     "celery_broker": "ok|error",
     "celery_workers": "ok|warning|error",
     "worker_count": 2,
@@ -141,7 +141,7 @@ POST /api/v1/admin/jobs/{request_id}/requeue
 {
   "request_id": "failed-job-123",
   "new_task_id": "celery-task-456",
-  "status": "requeued", 
+  "status": "requeued",
   "message": "Job successfully requeued. New task ID: celery-task-456"
 }
 ```

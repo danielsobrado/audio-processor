@@ -3,10 +3,11 @@ Simple script to run the comprehensive end-to-end test with proper environment s
 This ensures the .env.test file is loaded correctly.
 """
 
+import asyncio
 import os
 import sys
-import asyncio
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Load the test environment first
@@ -27,10 +28,10 @@ from test_e2e_real_audio import main
 if __name__ == "__main__":
     print("\n🚀 Starting comprehensive end-to-end test...")
     result = asyncio.run(main())
-    
+
     if result:
         print("\n🎉 SUCCESS: End-to-end test completed successfully!")
     else:
         print("\n❌ FAILURE: End-to-end test failed!")
-    
+
     sys.exit(0 if result else 1)

@@ -24,18 +24,12 @@ def upgrade() -> None:
         "transcription_jobs",
         sa.Column("progress", sa.Float(), nullable=False, server_default="0.0"),
     )
-    op.add_column(
-        "transcription_jobs", sa.Column("task_id", sa.String(), nullable=True)
-    )
+    op.add_column("transcription_jobs", sa.Column("task_id", sa.String(), nullable=True))
     op.add_column(
         "transcription_jobs",
-        sa.Column(
-            "job_type", sa.String(), nullable=False, server_default="transcription"
-        ),
+        sa.Column("job_type", sa.String(), nullable=False, server_default="transcription"),
     )
-    op.add_column(
-        "transcription_jobs", sa.Column("parameters", sa.JSON(), nullable=True)
-    )
+    op.add_column("transcription_jobs", sa.Column("parameters", sa.JSON(), nullable=True))
     op.add_column("transcription_jobs", sa.Column("result", sa.JSON(), nullable=True))
     op.add_column("transcription_jobs", sa.Column("error", sa.Text(), nullable=True))
 

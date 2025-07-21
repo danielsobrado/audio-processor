@@ -60,12 +60,12 @@ The `User` model has been updated to support JIT provisioning:
 ```python
 class User(Base):
     __tablename__ = "users"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     full_name = Column(String, nullable=True)
     # Made nullable to support JIT provisioned users
-    hashed_password = Column(String, nullable=True)  
+    hashed_password = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -246,7 +246,7 @@ Use the provided test suites:
    ```sql
    -- Check if user exists
    SELECT * FROM users WHERE email = 'user@example.com';
-   
+
    -- Check recent user creations
    SELECT * FROM users ORDER BY created_at DESC LIMIT 10;
    ```

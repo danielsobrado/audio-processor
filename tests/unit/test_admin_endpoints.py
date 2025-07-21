@@ -2,7 +2,7 @@
 Unit tests for admin job management endpoints.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -34,8 +34,8 @@ class TestAdminJobManagement:
         mock_job.user_id = "user-456"
         mock_job.status = JobStatus.COMPLETED
         mock_job.progress = 100.0
-        mock_job.created_at = datetime.now(timezone.utc)
-        mock_job.updated_at = datetime.now(timezone.utc)
+        mock_job.created_at = datetime.now(UTC)
+        mock_job.updated_at = datetime.now(UTC)
         mock_job.result = {"transcript": "test"}
         mock_job.error = None
         mock_job.task_id = "celery-task-123"
@@ -221,8 +221,8 @@ class TestAdminJobManagement:
         mock_job.user_id = "user-789"
         mock_job.status = JobStatus.PROCESSING
         mock_job.progress = 45.0
-        mock_job.created_at = datetime.now(timezone.utc)
-        mock_job.updated_at = datetime.now(timezone.utc)
+        mock_job.created_at = datetime.now(UTC)
+        mock_job.updated_at = datetime.now(UTC)
         mock_job.result = None
         mock_job.error = None
         mock_job.task_id = "active-task-123"

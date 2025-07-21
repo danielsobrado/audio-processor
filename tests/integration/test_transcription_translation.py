@@ -2,10 +2,8 @@
 Integration tests for the translation feature in the transcription API.
 """
 
-import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -233,7 +231,6 @@ class TestTranscriptionAPITranslation:
                 "app.api.v1.endpoints.transcribe.process_audio_async"
             ) as mock_process_audio,
         ):
-
             # Mock dependencies
             mock_get_user_id.return_value = "test-user-123"
 

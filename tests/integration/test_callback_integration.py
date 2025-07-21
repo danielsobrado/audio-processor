@@ -9,8 +9,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from app.workers.tasks import process_audio_async
-
 
 class TestCallbackIntegration:
     """Integration tests for callback URL functionality."""

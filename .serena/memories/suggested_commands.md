@@ -55,7 +55,7 @@ scripts\test-quick.bat              # Fast tests only
 # WSL/Linux - First time setup
 ./scripts/setup-tests.sh
 
-# WSL/Linux - Run tests  
+# WSL/Linux - Run tests
 ./scripts/run-tests.sh              # All tests
 ./scripts/run-tests.sh unit         # Unit tests only
 ./scripts/run-tests.sh coverage     # With coverage

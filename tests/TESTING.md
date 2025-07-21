@@ -51,7 +51,7 @@ scripts\test-quick.bat
 
 ### Main Test Runners
 - **`scripts/run-tests.bat`** - Windows Command Prompt test runner
-- **`scripts/run-tests.sh`** - WSL/Linux bash test runner  
+- **`scripts/run-tests.sh`** - WSL/Linux bash test runner
 - **`scripts/run-tests.ps1`** - Windows PowerShell test runner
 
 ### Quick Test Scripts
@@ -111,7 +111,7 @@ Run the setup script for your platform:
 # Windows
 scripts\setup-tests.bat
 
-# WSL/Linux  
+# WSL/Linux
 ./scripts/setup-tests.sh
 ```
 
@@ -125,7 +125,7 @@ scripts\setup-tests.bat
    ```bash
    # With Poetry (recommended)
    poetry install
-   
+
    # With pip
    pip install pytest pytest-asyncio pytest-cov httpx
    pip install -r requirements.txt
@@ -210,53 +210,53 @@ Coverage includes:
 
 5. **Diarization model errors when using Celery**
    If you see errors like "Could not download 'pyannote/segmentation' model" when running Celery commands, you're likely not using the test environment:
-   
+
    ```powershell
    # ❌ Wrong - uses default environment (tries to load diarization)
    celery -A app.workers.celery_app inspect active
-   
+
    # ✅ Correct - uses test environment (diarization disabled)
    uv run --env-file .env.test celery -A app.workers.celery_app inspect active
    ```
-   
+
    Always use `--env-file .env.test` with Celery commands during testing.
 
 6. **Celery "No nodes replied within time constraint" error**
    This error when running `celery inspect active` is common with in-memory brokers and doesn't indicate a problem:
-   
+
    ```powershell
    # This may show "No nodes replied" but is normal with memory:// broker
    uv run --env-file .env.test celery -A app.workers.celery_app inspect active
    ```
-   
+
    The worker is still functional if you see "celery@HOSTNAME ready" in the worker logs.
 
 7. **Jobs stuck in "pending" status**
    If end-to-end tests show jobs stuck in pending status, this usually means the Celery worker is not running. Follow these steps:
-   
+
    **Step 1: Check if worker is running**
    ```powershell
    uv run --env-file .env.test celery -A app.workers.celery_app inspect active
    ```
    If you see "Error: No nodes replied within time constraint", the worker is not running.
-   
+
    **Step 2: Start the Celery worker (Windows)**
    ```powershell
    # Start worker with Windows-compatible settings
    uv run --env-file .env.test celery -A app.workers.celery_app worker --loglevel=info --concurrency=1 --pool=solo
    ```
-   
+
    **Step 3: Verify worker is ready**
    Look for this message in the worker logs:
    ```
    [2025-01-01 12:00:00,000: INFO/MainProcess] celery@HOSTNAME ready.
    ```
-   
+
    **Step 4: Run your E2E test in a separate terminal**
    ```powershell
    uv run --env-file .env.test python test_e2e_complete.py
    ```
-   
+
    **Additional checks:**
    - Server and worker use the same broker configuration (both should use `memory://localhost//`)
    - Both server and worker use the same environment file (`.env.test`)
@@ -264,22 +264,22 @@ Coverage includes:
 
 8. **Windows Celery permission errors**
    On Windows, you may see permission errors like "PermissionError: [WinError 5] Access is denied" when using the default `prefork` concurrency model:
-   
+
    ```
    [ERROR/SpawnPoolWorker-1] Pool process error: PermissionError(13, 'Access is denied', None, 5, None)
    BrokenPipeError: [WinError 109] The pipe has been ended
    OSError: [WinError 6] The handle is invalid
    ```
-   
+
    **Solution**: Use the `solo` concurrency model which works better on Windows:
-   
+
    ```powershell
    # ❌ Default (may fail on Windows)
    uv run --env-file .env.test celery -A app.workers.celery_app worker --loglevel=info
-   
+
    # ✅ Windows-compatible
    uv run --env-file .env.test celery -A app.workers.celery_app worker --loglevel=info --concurrency=1 --pool=solo
    ```
-   
+
    The `solo` pool runs tasks in the main process rather than spawning separate worker processes, avoiding Windows-specific permission issues.
 ```

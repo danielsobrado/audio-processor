@@ -3,14 +3,19 @@ Admin endpoints for job management and system operations.
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Optional, cast
+from datetime import UTC, datetime
+from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_async_session, require_roles
+from app.api.dependencies import (
+    get_async_session,
+    get_settings_dependency,
+    require_roles,
+)
+from app.config.settings import Settings
 from app.schemas.api import (
     AdminJobListResponse,
     AdminJobRequeueRequest,
@@ -32,17 +37,39 @@ router = APIRouter()
     description="Retrieve all jobs across all users. Admin access required.",
 )
 async def list_all_jobs(
-    status_filter: Optional[str] = Query(None, description="Filter by job status"),
-    limit: int = Query(
-        50, ge=1, le=500, description="Maximum number of jobs to return"
-    ),
-    offset: int = Query(0, ge=0, description="Number of jobs to skip"),
+    status_filter: str | None = Query(None, description="Filter by job status"),
+    limit: int | None = Query(None, ge=1, description="Maximum number of jobs to return"),
+    offset: int | None = Query(None, ge=0, description="Number of jobs to skip"),
     session: AsyncSession = Depends(get_async_session),
+    settings: Settings = Depends(get_settings_dependency),
 ) -> AdminJobListResponse:
     """
     Retrieve all jobs in the system with pagination and filtering.
-    Admin-only endpoint for system monitoring and support.
+
+    This endpoint provides system administrators with comprehensive access to all
+    transcription jobs across all users. It supports filtering by job status and
+    includes pagination for handling large datasets.
+
+    Args:
+        status_filter: Optional filter to show only jobs with a specific status.
+        limit: Maximum number of jobs to return (respects system limits).
+        offset: Number of jobs to skip for pagination.
+        session: Database session dependency.
+        settings: Application settings dependency.
+
+    Returns:
+        A paginated list of jobs with metadata including total count.
+
+    Raises:
+        HTTPException: 400 for invalid status filter, 500 for database errors.
     """
+
+    # Use settings for defaults
+    final_limit = limit if limit is not None else settings.api.default_limit
+    final_offset = offset if offset is not None else settings.api.default_offset
+
+    if final_limit > settings.api.max_limit:
+        final_limit = settings.api.max_limit
 
     try:
         from sqlalchemy import desc, func, select
@@ -62,7 +89,8 @@ async def list_all_jobs(
                 raise HTTPException(
                     status_code=http_status.HTTP_400_BAD_REQUEST,
                     detail=f"Invalid status filter: {status_filter}. Valid values: {
-                        [s.value for s in JobStatus]}",
+                        [s.value for s in JobStatus]
+                    }",
                 )
 
         # Get total count for pagination
@@ -74,7 +102,7 @@ async def list_all_jobs(
         total_count = total_result.scalar()
 
         # Apply pagination
-        query = query.offset(offset).limit(limit)
+        query = query.offset(final_offset).limit(final_limit)
 
         # Execute query
         result = await session.execute(query)
@@ -125,8 +153,8 @@ async def list_all_jobs(
         return AdminJobListResponse(
             jobs=job_responses,
             total_count=total_count or 0,
-            limit=limit,
-            offset=offset,
+            limit=final_limit,
+            offset=final_offset,
         )
 
     except HTTPException:
@@ -160,7 +188,17 @@ async def requeue_job(
     - Network issues during processing
     - Service outages that affected job processing
 
-    The job must be in 'failed' status to be requeued.
+    Args:
+        request_id: The unique identifier of the job to requeue.
+        requeue_request: Request body containing reason for requeue.
+        session: Database session dependency.
+
+    Returns:
+        Response containing the new task ID and status information.
+
+    Raises:
+        HTTPException: 404 if job not found, 400 if job cannot be requeued,
+                      500 for database or task creation errors.
     """
 
     try:
@@ -169,9 +207,7 @@ async def requeue_job(
         from app.schemas.database import TranscriptionJob
 
         # Get the job
-        query = select(TranscriptionJob).where(
-            TranscriptionJob.request_id == request_id
-        )
+        query = select(TranscriptionJob).where(TranscriptionJob.request_id == request_id)
         result = await session.execute(query)
         job = result.scalar_one_or_none()
 
@@ -186,8 +222,7 @@ async def requeue_job(
         if job_status != JobStatus.FAILED:
             raise HTTPException(
                 status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail=f"Job status is '{
-                    job.status.value}'. Only failed jobs can be requeued.",
+                detail=f"Job status is '{job.status.value}'. Only failed jobs can be requeued.",
             )
 
         # Update job status to pending
@@ -198,7 +233,7 @@ async def requeue_job(
                 status=JobStatus.PENDING,
                 progress=0.0,
                 error=None,
-                updated_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(UTC),
                 task_id=None,  # Will be set when new task is created
             )
         )
@@ -254,8 +289,7 @@ async def requeue_job(
     dependencies=[Depends(require_roles(["admin"]))],
     summary="Get detailed job information",
     description=(
-        "Retrieve detailed information about any job in the system. "
-        "Admin access required."
+        "Retrieve detailed information about any job in the system. Admin access required."
     ),
 )
 async def get_job_details(
@@ -264,7 +298,20 @@ async def get_job_details(
 ) -> JobResponse:
     """
     Get detailed information about a specific job.
-    Admin-only endpoint for troubleshooting and support.
+
+    This endpoint provides comprehensive job information for troubleshooting
+    and support purposes. It includes all job metadata, execution details,
+    and error information if applicable.
+
+    Args:
+        request_id: The unique identifier of the job to retrieve.
+        session: Database session dependency.
+
+    Returns:
+        Complete job information including status, progress, results, and errors.
+
+    Raises:
+        HTTPException: 404 if job not found, 500 for database errors.
     """
 
     try:
@@ -272,9 +319,7 @@ async def get_job_details(
 
         from app.schemas.database import TranscriptionJob
 
-        query = select(TranscriptionJob).where(
-            TranscriptionJob.request_id == request_id
-        )
+        query = select(TranscriptionJob).where(TranscriptionJob.request_id == request_id)
         result = await session.execute(query)
         job = result.scalar_one_or_none()
 
@@ -323,9 +368,7 @@ async def get_job_details(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
-            f"Failed to retrieve job details for {request_id}: {e}", exc_info=True
-        )
+        logger.error(f"Failed to retrieve job details for {request_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve job details",
@@ -346,10 +389,22 @@ async def delete_job(
     Permanently delete a job from the system.
 
     WARNING: This operation cannot be undone. Use with caution.
-    Typically used for:
-    - Removing test jobs
+
+    This endpoint is typically used for:
+    - Removing test jobs from development/testing
     - Cleaning up corrupted job records
     - GDPR compliance (data deletion requests)
+    - System maintenance and cleanup
+
+    Args:
+        request_id: The unique identifier of the job to delete.
+        session: Database session dependency.
+
+    Returns:
+        Confirmation message with the deleted job ID.
+
+    Raises:
+        HTTPException: 404 if job not found, 500 for database errors.
     """
 
     try:
@@ -358,9 +413,7 @@ async def delete_job(
         from app.schemas.database import TranscriptionJob
 
         # Check if job exists
-        query = select(TranscriptionJob).where(
-            TranscriptionJob.request_id == request_id
-        )
+        query = select(TranscriptionJob).where(TranscriptionJob.request_id == request_id)
         result = await session.execute(query)
         job = result.scalar_one_or_none()
 
@@ -371,9 +424,7 @@ async def delete_job(
             )
 
         # Delete the job
-        delete_stmt = delete(TranscriptionJob).where(
-            TranscriptionJob.request_id == request_id
-        )
+        delete_stmt = delete(TranscriptionJob).where(TranscriptionJob.request_id == request_id)
         await session.execute(delete_stmt)
         await session.commit()
 
@@ -402,6 +453,20 @@ async def get_system_stats(
 ):
     """
     Get comprehensive system statistics for monitoring and reporting.
+
+    This endpoint provides administrators with key metrics about the system's
+    job processing performance, including job counts by status, recent activity,
+    and overall system health indicators.
+
+    Args:
+        session: Database session dependency.
+
+    Returns:
+        Dictionary containing total jobs, recent activity, status breakdown,
+        and timestamp of when statistics were generated.
+
+    Raises:
+        HTTPException: 500 for database errors or statistics calculation failures.
     """
 
     try:
@@ -424,7 +489,7 @@ async def get_system_stats(
         # Get recent activity (last 24 hours)
         from datetime import timedelta
 
-        yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+        yesterday = datetime.now(UTC) - timedelta(days=1)
         recent_query = (
             select(func.count())
             .select_from(TranscriptionJob)
@@ -437,7 +502,7 @@ async def get_system_stats(
             "total_jobs": total_jobs,
             "recent_jobs_24h": recent_jobs,
             "status_breakdown": status_counts,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     except Exception as e:

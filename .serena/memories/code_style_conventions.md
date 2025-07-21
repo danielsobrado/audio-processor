@@ -17,11 +17,11 @@ def submit_transcription_job(
 ) -> str:
     """
     Submit a new transcription job.
-    
+
     Args:
         request: The transcription request model.
         audio_file: The uploaded audio file, if any.
-    
+
     Returns:
         The request ID of the created job.
     """

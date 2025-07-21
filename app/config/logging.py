@@ -1,7 +1,6 @@
 import logging
 import sys
 from logging.handlers import RotatingFileHandler
-from typing import Optional
 
 try:
     from pythonjsonlogger.formatter import JsonFormatter
@@ -13,7 +12,7 @@ def setup_logging(
     log_level: str = "INFO",
     environment: str = "development",
     log_format: str = "json",
-    log_file: Optional[str] = None,
+    log_file: str | None = None,
     max_bytes: int = 10 * 1024 * 1024,  # 10 MB
     backup_count: int = 5,
 ) -> None:
@@ -43,17 +42,13 @@ def setup_logging(
         )
     else:
         # Standard format for development or if jsonlogger is not available
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
 
     # File Handler (optional)
     if log_file:
-        file_handler = RotatingFileHandler(
-            log_file, maxBytes=max_bytes, backupCount=backup_count
-        )
+        file_handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
         file_handler.setFormatter(formatter)
         root_logger.addHandler(file_handler)
 

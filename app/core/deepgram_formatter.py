@@ -6,10 +6,10 @@ Converts WhisperX results to Deepgram JSON format for API compatibility.
 import hashlib
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from datetime import UTC, datetime
 
 from app.config.settings import get_settings
+from app.utils.constants import DEFAULT_HIGH_CONFIDENCE
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -69,7 +69,7 @@ class DeepgramFormatter:
 
         return text
 
-    def _get_supported_languages(self) -> List[str]:
+    def _get_supported_languages(self) -> list[str]:
         """Get list of supported language codes."""
         return [
             "en",
@@ -178,7 +178,7 @@ class DeepgramFormatter:
         request_id: str,
         error_message: str,
         error_code: str = "processing_error",
-    ) -> Dict:
+    ) -> dict:
         """
         Format error response in Deepgram-compatible structure.
 
@@ -194,7 +194,7 @@ class DeepgramFormatter:
             "metadata": {
                 "transaction_key": "deprecated",
                 "request_id": request_id,
-                "created": datetime.now(timezone.utc).isoformat(),
+                "created": datetime.now(UTC).isoformat(),
                 "error": {
                     "code": error_code,
                     "message": error_message,
@@ -219,9 +219,9 @@ class DeepgramFormatter:
 
     def add_translation_data(
         self,
-        deepgram_response: Dict,
-        translations: Dict[str, str],
-    ) -> Dict:
+        deepgram_response: dict,
+        translations: dict[str, str],
+    ) -> dict:
         """
         Add translation data to existing Deepgram response.
 
@@ -259,9 +259,7 @@ class DeepgramFormatter:
                                         {
                                             "text": translated_text,
                                             "start": 0.0,
-                                            "end": deepgram_response["metadata"][
-                                                "duration"
-                                            ],
+                                            "end": deepgram_response["metadata"]["duration"],
                                         }
                                     ],
                                     "speaker": None,
@@ -283,10 +281,10 @@ class DeepgramFormatter:
 
     def add_summary_data(
         self,
-        deepgram_response: Dict,
+        deepgram_response: dict,
         summary: str,
         summary_type: str = "abstractive",
-    ) -> Dict:
+    ) -> dict:
         """
         Add summarization data to Deepgram response.
 
@@ -303,7 +301,7 @@ class DeepgramFormatter:
             deepgram_response["metadata"]["summary"] = {
                 "text": summary,
                 "type": summary_type,
-                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "generated_at": datetime.now(UTC).isoformat(),
             }
 
             # Add summary as special result section
@@ -311,7 +309,7 @@ class DeepgramFormatter:
                 deepgram_response["results"]["summary"] = {
                     "text": summary,
                     "type": summary_type,
-                    "confidence": 0.8,  # Default confidence for generated content
+                    "confidence": DEFAULT_HIGH_CONFIDENCE,  # Default confidence for generated content
                 }
 
             return deepgram_response
@@ -320,7 +318,7 @@ class DeepgramFormatter:
             logger.error(f"Failed to add summary data: {e}")
             return deepgram_response
 
-    def validate_deepgram_format(self, response: Dict) -> bool:
+    def validate_deepgram_format(self, response: dict) -> bool:
         """
         Validate that response conforms to Deepgram format.
 
@@ -380,7 +378,7 @@ class DeepgramFormatter:
             logger.error(f"Validation error: {e}")
             return False
 
-    def get_format_info(self) -> Dict:
+    def get_format_info(self) -> dict:
         """Get information about the Deepgram format implementation."""
         return {
             "format_version": "1.0",
@@ -442,16 +440,16 @@ class DeepgramFormatter:
 
     def format_transcription_result(
         self,
-        whisperx_result: Dict,
+        whisperx_result: dict,
         request_id: str,
         model_name: str = "large-v2",
-        audio_duration: Optional[float] = None,
-        audio_data: Optional[bytes] = None,
+        audio_duration: float | None = None,
+        audio_data: bytes | None = None,
         punctuate: bool = True,
         diarize: bool = True,
         smart_format: bool = True,
         utterances: bool = True,
-    ) -> Dict:
+    ) -> dict:
         """
         Convert WhisperX result to Deepgram-compatible format.
 
@@ -519,8 +517,8 @@ class DeepgramFormatter:
         model_name: str,
         audio_duration: float,
         detected_language: str,
-        audio_data: Optional[bytes] = None,
-    ) -> Dict:
+        audio_data: bytes | None = None,
+    ) -> dict:
         """Generate Deepgram-compatible metadata section."""
 
         # Calculate SHA256 if audio data available
@@ -535,7 +533,7 @@ class DeepgramFormatter:
             "transaction_key": "deprecated",  # Deepgram legacy field
             "request_id": request_id,
             "sha256": sha256_hash,
-            "created": datetime.now(timezone.utc).isoformat(),
+            "created": datetime.now(UTC).isoformat(),
             "duration": round(audio_duration, 3),
             "channels": 1,  # WhisperX processes mono audio
             "models": [model_name],
@@ -553,10 +551,10 @@ class DeepgramFormatter:
 
     def _convert_channels(
         self,
-        segments: List[Dict],
+        segments: list[dict],
         punctuate: bool = True,
         smart_format: bool = True,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Convert WhisperX segments to Deepgram channels format."""
 
         if not segments:
@@ -595,7 +593,10 @@ class DeepgramFormatter:
                         "start": float(word_data.get("start", segment_start)),
                         "end": float(word_data.get("end", segment_end)),
                         "confidence": float(
-                            word_data.get("score", word_data.get("confidence", 0.8))
+                            word_data.get(
+                                "score",
+                                word_data.get("confidence", DEFAULT_HIGH_CONFIDENCE),
+                            )
                         ),
                     }
 
@@ -619,13 +620,11 @@ class DeepgramFormatter:
                             "word": word,
                             "start": round(word_start, 3),
                             "end": round(word_end, 3),
-                            "confidence": 0.8,  # Default confidence
+                            "confidence": DEFAULT_HIGH_CONFIDENCE,  # Default confidence
                         }
 
                         if segment_speaker is not None:
-                            word_entry["speaker"] = self._normalize_speaker_id(
-                                segment_speaker
-                            )
+                            word_entry["speaker"] = self._normalize_speaker_id(segment_speaker)
 
                         all_words.append(word_entry)
 
@@ -640,8 +639,10 @@ class DeepgramFormatter:
             full_transcript = self._apply_punctuation(full_transcript)
 
         # Calculate overall confidence
-        confidences = [w.get("confidence", 0.8) for w in all_words]
-        overall_confidence = sum(confidences) / len(confidences) if confidences else 0.8
+        confidences = [w.get("confidence", DEFAULT_HIGH_CONFIDENCE) for w in all_words]
+        overall_confidence = (
+            sum(confidences) / len(confidences) if confidences else DEFAULT_HIGH_CONFIDENCE
+        )
 
         # Generate paragraphs structure
         paragraphs = self._generate_paragraphs(segments, all_words)
@@ -656,7 +657,7 @@ class DeepgramFormatter:
 
         return [{"alternatives": [alternative]}]
 
-    def _generate_utterances(self, segments: List[Dict]) -> List[Dict]:
+    def _generate_utterances(self, segments: list[dict]) -> list[dict]:
         """Generate Deepgram-style utterances from WhisperX segments."""
         utterances = []
 
@@ -690,10 +691,10 @@ class DeepgramFormatter:
 
             # Calculate confidence for utterance
             if segment_words:
-                confidences = [w.get("confidence", 0.8) for w in segment_words]
+                confidences = [w.get("confidence", DEFAULT_HIGH_CONFIDENCE) for w in segment_words]
                 utterance_confidence = sum(confidences) / len(confidences)
             else:
-                utterance_confidence = 0.8
+                utterance_confidence = DEFAULT_HIGH_CONFIDENCE
 
             utterance = {
                 "start": round(segment_start, 3),
@@ -713,9 +714,7 @@ class DeepgramFormatter:
 
         return utterances
 
-    def _generate_paragraphs(
-        self, segments: List[Dict], all_words: List[Dict]
-    ) -> List[Dict]:
+    def _generate_paragraphs(self, segments: list[dict], all_words: list[dict]) -> list[dict]:
         """Generate paragraph structure from segments."""
         paragraphs = []
         current_speaker = None
@@ -763,7 +762,7 @@ class DeepgramFormatter:
 
         return paragraphs
 
-    def _normalize_speaker_id(self, speaker) -> Optional[int]:
+    def _normalize_speaker_id(self, speaker) -> int | None:
         """Convert speaker identifier to integer format."""
         if speaker is None:
             return None

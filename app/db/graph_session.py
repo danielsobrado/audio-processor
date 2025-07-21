@@ -3,7 +3,7 @@
 import logging
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.config.settings import get_settings
 
@@ -23,18 +23,18 @@ class GraphDatabaseDriver(ABC):
 
     @abstractmethod
     async def execute_read_query(
-        self, query: str, parameters: Optional[Dict[str, Any]] = None
-    ) -> List[Dict]:
+        self, query: str, parameters: dict[str, Any] | None = None
+    ) -> list[dict]:
         """Execute read query and return results."""
 
     @abstractmethod
     async def execute_write_query(
-        self, query: str, parameters: Optional[Dict[str, Any]] = None
-    ) -> List[Dict]:
+        self, query: str, parameters: dict[str, Any] | None = None
+    ) -> list[dict]:
         """Execute write query and return results."""
 
     @abstractmethod
-    async def execute_batch_queries(self, queries: List[tuple]) -> List[Dict]:
+    async def execute_batch_queries(self, queries: list[tuple]) -> list[dict]:
         """Execute multiple queries in batch."""
 
 
@@ -52,9 +52,7 @@ class Neo4jDriver(GraphDatabaseDriver):
         try:
             from neo4j import AsyncGraphDatabase
 
-            self._driver = AsyncGraphDatabase.driver(
-                self.url, auth=(self.username, self.password)
-            )
+            self._driver = AsyncGraphDatabase.driver(self.url, auth=(self.username, self.password))
             logger.info(f"Connected to Neo4j at {self.url}")
         except Exception as e:
             logger.error(f"Failed to connect to Neo4j: {e}")
@@ -67,8 +65,8 @@ class Neo4jDriver(GraphDatabaseDriver):
             logger.info("Disconnected from Neo4j")
 
     async def execute_read_query(
-        self, query: str, parameters: Optional[Dict[str, Any]] = None
-    ) -> List[Dict]:
+        self, query: str, parameters: dict[str, Any] | None = None
+    ) -> list[dict]:
         """Execute read query in Neo4j."""
         parameters = parameters or {}
 
@@ -82,8 +80,8 @@ class Neo4jDriver(GraphDatabaseDriver):
             return records
 
     async def execute_write_query(
-        self, query: str, parameters: Optional[Dict[str, Any]] = None
-    ) -> List[Dict]:
+        self, query: str, parameters: dict[str, Any] | None = None
+    ) -> list[dict]:
         """Execute write query in Neo4j."""
         parameters = parameters or {}
 
@@ -96,27 +94,27 @@ class Neo4jDriver(GraphDatabaseDriver):
                 records.append(dict(record))
             return records
 
-    async def execute_batch_queries(self, queries: List[tuple]) -> List[Dict]:
+    async def execute_batch_queries(self, queries: list[tuple]) -> list[dict]:
         """Execute multiple queries in batch in Neo4j."""
         results = []
 
         if self._driver is None:
             raise RuntimeError("Neo4j driver not initialized.")
-            
+
         logger.info(f"🔄 Neo4j executing {len(queries)} batch queries...")
-        
+
         async with self._driver.session() as session:
             for i, (query, parameters) in enumerate(queries):
                 try:
-                    logger.debug(f"📤 Executing query {i+1}: {query[:100]}...")
+                    logger.debug(f"📤 Executing query {i + 1}: {query[:100]}...")
                     result = await session.run(query, parameters or {})
                     batch_records = []
                     async for record in result:
                         batch_records.append(dict(record))
                     results.extend(batch_records)
-                    logger.debug(f"✅ Query {i+1} completed: {len(batch_records)} records")
+                    logger.debug(f"✅ Query {i + 1} completed: {len(batch_records)} records")
                 except Exception as e:
-                    logger.error(f"❌ Query {i+1} failed: {e}")
+                    logger.error(f"❌ Query {i + 1} failed: {e}")
                     logger.error(f"   Query: {query}")
                     logger.error(f"   Parameters: {parameters}")
                     # Continue with other queries instead of failing completely
@@ -158,8 +156,8 @@ class ArangoDBDriver(GraphDatabaseDriver):
             logger.info("Disconnected from ArangoDB")
 
     async def execute_read_query(
-        self, query: str, parameters: Optional[Dict[str, Any]] = None
-    ) -> List[Dict]:
+        self, query: str, parameters: dict[str, Any] | None = None
+    ) -> list[dict]:
         """Execute read query in ArangoDB."""
         import asyncio
         import concurrent.futures
@@ -181,8 +179,8 @@ class ArangoDBDriver(GraphDatabaseDriver):
             return await loop.run_in_executor(executor, _execute_blocking)
 
     async def execute_write_query(
-        self, query: str, parameters: Optional[Dict[str, Any]] = None
-    ) -> List[Dict]:
+        self, query: str, parameters: dict[str, Any] | None = None
+    ) -> list[dict]:
         """Execute write query in ArangoDB."""
         import asyncio
         import concurrent.futures
@@ -203,7 +201,7 @@ class ArangoDBDriver(GraphDatabaseDriver):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             return await loop.run_in_executor(executor, _execute_blocking)
 
-    async def execute_batch_queries(self, queries: List[tuple]) -> List[Dict]:
+    async def execute_batch_queries(self, queries: list[tuple]) -> list[dict]:
         """Execute multiple queries in batch in ArangoDB."""
         import asyncio
         import concurrent.futures
@@ -231,7 +229,7 @@ class GraphDatabaseManager:
 
     def __init__(self):
         self._settings = get_settings()
-        self._driver: Optional[GraphDatabaseDriver] = None
+        self._driver: GraphDatabaseDriver | None = None
         self._is_connected = False
 
     async def initialize(self) -> None:
@@ -289,8 +287,8 @@ class GraphDatabaseManager:
         return self._is_connected
 
     async def execute_read_transaction(
-        self, query: str, parameters: Optional[Dict[str, Any]] = None
-    ) -> List[Dict]:
+        self, query: str, parameters: dict[str, Any] | None = None
+    ) -> list[dict]:
         """Execute read transaction."""
         if not self.is_enabled or not self.is_connected:
             logger.debug("Graph database not available")
@@ -305,8 +303,8 @@ class GraphDatabaseManager:
             return []
 
     async def execute_write_transaction(
-        self, query: str, parameters: Optional[Dict[str, Any]] = None
-    ) -> List[Dict]:
+        self, query: str, parameters: dict[str, Any] | None = None
+    ) -> list[dict]:
         """Execute write transaction."""
         if not self.is_enabled or not self.is_connected:
             logger.debug("Graph database not available")
@@ -320,7 +318,7 @@ class GraphDatabaseManager:
             logger.error(f"Failed to execute write transaction: {e}")
             raise
 
-    async def execute_batch_transactions(self, queries: List[tuple]) -> List[Dict]:
+    async def execute_batch_transactions(self, queries: list[tuple]) -> list[dict]:
         """Execute batch transactions."""
         if not self.is_enabled or not self.is_connected:
             logger.debug("Graph database not available for batch transactions")
@@ -329,15 +327,16 @@ class GraphDatabaseManager:
         try:
             if self._driver is None:
                 raise RuntimeError("Graph database driver not initialized.")
-            
+
             logger.info(f"🔄 Executing {len(queries)} batch transactions...")
             results = await self._driver.execute_batch_queries(queries)
             logger.info(f"✅ Batch transactions completed: {len(results)} results")
             return results
-            
+
         except Exception as e:
             logger.error(f"❌ Failed to execute batch transactions: {e}")
             import traceback
+
             logger.error(traceback.format_exc())
             raise
 

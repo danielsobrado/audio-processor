@@ -1,6 +1,6 @@
 # Audio Processor
 
-An advanced audio processing application focused on transcription, diarization, summarization, and translation, with robust support for both English and Arabic languages. This project provides a scalable and efficient solution for handling various audio processing tasks.
+An audio processing application focused on transcription, diarization, summarization, and translation, with robust support for both English and Arabic languages. This project provides a scalable and efficient solution for handling various audio processing tasks.
 
 ## Features
 
@@ -39,7 +39,6 @@ Follow these steps to set up the project locally.
 *   Python 3.12+
 *   uv (recommended for dependency management, install from [astral.sh/uv](https://docs.astral.sh/uv/getting-started/installation/))
 *   Docker (for running services like Redis and PostgreSQL)
-*   Deepgram API Key (get one from [Deepgram](https://deepgram.com/))
 
 > **Note**: This project has migrated from Poetry to uv for faster dependency management. If you have an existing setup with Poetry, you can migrate by running `uv sync --dev` after installing uv.
 
@@ -52,13 +51,13 @@ cd audio-processor
 
 ### 2. Set up Environment Variables
 
-Copy the example environment file and update it with your Deepgram API key and other configurations.
+Copy the example environment file and update it with your configurations.
 
 ```bash
 cp .env.example .env
 ```
 
-Edit the `.env` file and fill in your `DEEPGRAM_API_KEY`. You might also want to adjust database or Redis connection settings if you're not using the default Docker setup.
+Edit the `.env` file and fill in your keys. You might also want to adjust database or Redis connection settings if you're not using the default Docker setup.
 
 ### 3. Install Dependencies
 
@@ -119,7 +118,7 @@ The application includes optional Neo4j integration for conversation analysis. T
 ```bash
 docker run -d --name neo4j \
   -p 7474:7474 -p 7687:7687 \
-  -e NEO4J_AUTH=neo4j/password \
+  -e NEO4J_AUTH=neo4j/devpassword \
   neo4j:5.15-community
 ```
 
@@ -131,7 +130,7 @@ graph:
   neo4j:
     url: "bolt://localhost:7687"
     username: "neo4j"
-    password: "password"
+    password: "devpassword"
 ```
 
 **Access Neo4j Browser:**
@@ -216,7 +215,7 @@ This project uses [uv](https://docs.astral.sh/uv/) for fast and reliable depende
 # Add a production dependency
 uv add package-name
 
-# Add a development dependency  
+# Add a development dependency
 uv add --dev package-name
 
 # Add specific version
@@ -332,7 +331,7 @@ if file and not settings.enable_audio_upload:
         detail="Direct audio file uploads are currently disabled."
     )
 
-# Example: Translation blocking  
+# Example: Translation blocking
 if translate and not settings.translation.enabled:
     raise HTTPException(
         status_code=400,

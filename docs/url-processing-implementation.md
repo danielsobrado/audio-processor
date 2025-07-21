@@ -72,7 +72,7 @@ elif request_data.get("audio_url"):
     # Download audio from URL
     audio_url = request_data["audio_url"]
     logger.info(f"Downloading audio from URL: {audio_url}")
-    
+
     # Use a temporary file to stream the download, avoiding memory issues
     with tempfile.NamedTemporaryFile(delete=False, suffix=".tmp") as temp_file:
         audio_path = Path(temp_file.name)
@@ -110,7 +110,7 @@ PyJWT
 3. Audio is processed normally using the same pipeline as uploaded files
 4. Temporary files are cleaned up after processing
 
-### When Feature is Disabled (`enable_url_processing: false`)  
+### When Feature is Disabled (`enable_url_processing: false`)
 1. API endpoint rejects requests with `audio_url` parameter
 2. Returns HTTP 403 with message "Processing from a URL is disabled"
 3. File uploads continue to work normally
@@ -157,7 +157,7 @@ ENABLE_URL_PROCESSING=False
 # config/production.yaml
 enable_url_processing: true
 
-# config/development.yaml  
+# config/development.yaml
 enable_url_processing: true
 ```
 
@@ -182,7 +182,7 @@ Status Code: 403 Forbidden
 
 ### URL Download Failures
 - Network timeouts → ValueError with descriptive message
-- Invalid URLs → HTTPException from httpx client  
+- Invalid URLs → HTTPException from httpx client
 - HTTP errors → HTTPException with status code details
 - File system errors → ValueError with cleanup performed
 

@@ -1,7 +1,7 @@
 """Graph API endpoints for graph database queries."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -28,28 +28,28 @@ class GraphStatsResponse(BaseModel):
     """Response model for graph statistics."""
 
     enabled: bool
-    stats: Dict[str, Any]
+    stats: dict[str, Any]
 
 
 class ConversationGraphResponse(BaseModel):
     """Response model for conversation graph data."""
 
     conversation_id: str
-    graph_data: Dict[str, Any]
+    graph_data: dict[str, Any]
 
 
 class SpeakerNetworkResponse(BaseModel):
     """Response model for speaker network analysis."""
 
     conversation_id: str
-    speaker_interactions: List[Dict[str, Any]]
+    speaker_interactions: list[dict[str, Any]]
 
 
 class TopicFlowResponse(BaseModel):
     """Response model for topic flow analysis."""
 
     conversation_id: str
-    topic_transitions: List[Dict[str, Any]]
+    topic_transitions: list[dict[str, Any]]
 
 
 @router.get("/stats", response_model=GraphStatsResponse)
@@ -73,9 +73,7 @@ async def get_graph_stats(
         )
 
 
-@router.get(
-    "/conversation/{conversation_id}/graph", response_model=ConversationGraphResponse
-)
+@router.get("/conversation/{conversation_id}/graph", response_model=ConversationGraphResponse)
 async def get_conversation_graph(
     conversation_id: str, graph_service: GraphService = Depends(get_graph_service)
 ) -> ConversationGraphResponse:
@@ -92,9 +90,7 @@ async def get_conversation_graph(
                 detail=f"No graph data found for conversation {conversation_id}",
             )
 
-        return ConversationGraphResponse(
-            conversation_id=conversation_id, graph_data=graph_data
-        )
+        return ConversationGraphResponse(conversation_id=conversation_id, graph_data=graph_data)
 
     except HTTPException:
         raise
@@ -127,14 +123,10 @@ async def get_speaker_network(
         raise
     except Exception as e:
         logger.error(f"Failed to get speaker network: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to retrieve speaker network: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve speaker network: {str(e)}")
 
 
-@router.get(
-    "/conversation/{conversation_id}/topic-flow", response_model=TopicFlowResponse
-)
+@router.get("/conversation/{conversation_id}/topic-flow", response_model=TopicFlowResponse)
 async def get_topic_flow(
     conversation_id: str, graph_service: GraphService = Depends(get_graph_service)
 ) -> TopicFlowResponse:
@@ -153,46 +145,35 @@ async def get_topic_flow(
         raise
     except Exception as e:
         logger.error(f"Failed to get topic flow: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to retrieve topic flow: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve topic flow: {str(e)}")
 
 
 @router.get("/node/{node_id}/relationships")
 async def get_node_relationships(
     node_id: str,
-    node_type: Optional[str] = Query(None, description="Node type filter"),
-    relationship_types: Optional[str] = Query(
-        None, description="Comma-separated relationship types"
-    ),
-    direction: str = Query(
-        "BOTH", description="Relationship direction: IN, OUT, or BOTH"
-    ),
+    node_type: str | None = Query(None, description="Node type filter"),
+    relationship_types: str | None = Query(None, description="Comma-separated relationship types"),
+    direction: str = Query("BOTH", description="Relationship direction: IN, OUT, or BOTH"),
     graph_service: GraphService = Depends(get_graph_service),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get relationships for a specific node."""
     try:
         if not graph_service.settings.graph.enabled:
             raise HTTPException(status_code=503, detail="Graph processing is disabled")
 
         # Parse relationship types
-        rel_types: Optional[List[str]] = None
+        rel_types: list[str] | None = None
         if relationship_types:
             try:
                 rel_types = [
-                    RelationshipType(rt.strip()).value
-                    for rt in relationship_types.split(",")
+                    RelationshipType(rt.strip()).value for rt in relationship_types.split(",")
                 ]
             except ValueError as e:
-                raise HTTPException(
-                    status_code=400, detail=f"Invalid relationship type: {str(e)}"
-                )
+                raise HTTPException(status_code=400, detail=f"Invalid relationship type: {str(e)}")
 
         # Validate direction
         if direction not in ["IN", "OUT", "BOTH"]:
-            raise HTTPException(
-                status_code=400, detail="Direction must be IN, OUT, or BOTH"
-            )
+            raise HTTPException(status_code=400, detail="Direction must be IN, OUT, or BOTH")
 
         relationships = await graph_service.get_node_relationships(
             node_id=node_id, relationship_types=rel_types, direction=direction
@@ -219,7 +200,7 @@ async def find_shortest_path(
     to_node_id: str,
     max_hops: int = Query(5, description="Maximum number of hops", ge=1, le=10),
     graph_service: GraphService = Depends(get_graph_service),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Find shortest path between two nodes."""
     try:
         if not graph_service.settings.graph.enabled:
@@ -246,23 +227,19 @@ async def find_shortest_path(
         raise
     except Exception as e:
         logger.error(f"Failed to find shortest path: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to find shortest path: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to find shortest path: {str(e)}")
 
 
 # New Speaker Endpoints
 @router.get(
     "/speakers/top",
-    response_model=List[TopSpeakerResponse],
+    response_model=list[TopSpeakerResponse],
     summary="Get Top Speakers",
     description="Get a list of top speakers based on a specified metric.",
 )
 async def get_top_speakers(
     limit: int = Query(10, ge=1, le=100),
-    metric: str = Query(
-        "speaking_time", enum=["speaking_time", "conversations", "turns"]
-    ),
+    metric: str = Query("speaking_time", enum=["speaking_time", "conversations", "turns"]),
     service: SpeakerGraphService = Depends(get_speaker_graph_service),
 ):
     """Get top speakers based on speaking time, conversation count, or turn count."""
@@ -302,7 +279,7 @@ async def get_speaker_profile(
 
 @router.get(
     "/speakers/{speaker_id}/similar",
-    response_model=List[SimilarSpeakerResponse],
+    response_model=list[SimilarSpeakerResponse],
     summary="Find Similar Speakers",
     description="Find speakers with similar communication patterns.",
 )
@@ -317,15 +294,13 @@ async def find_similar_speakers(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Graph processing is disabled",
         )
-    return await service.find_similar_speakers(
-        speaker_id, similarity_threshold=threshold
-    )
+    return await service.find_similar_speakers(speaker_id, similarity_threshold=threshold)
 
 
 # New Topic Endpoints
 @router.get(
     "/topics/trending",
-    response_model=List[TrendingTopicResponse],
+    response_model=list[TrendingTopicResponse],
     summary="Get Trending Topics",
     description="Get a list of trending topics based on recent activity.",
 )
@@ -340,9 +315,7 @@ async def get_trending_topics(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Graph processing is disabled",
         )
-    return await service.get_trending_topics(
-        limit=limit, time_window_hours=time_window_hours
-    )
+    return await service.get_trending_topics(limit=limit, time_window_hours=time_window_hours)
 
 
 @router.get(
@@ -373,7 +346,7 @@ async def get_topic_profile(
 
 @router.get(
     "/topics/{topic_id}/co-occurrence",
-    response_model=List[TopicCooccurrenceResponse],
+    response_model=list[TopicCooccurrenceResponse],
     summary="Get Topic Co-occurrence",
     description="Find topics that frequently occur with the specified topic.",
 )

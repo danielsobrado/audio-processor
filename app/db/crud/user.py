@@ -1,6 +1,6 @@
 """User CRUD operations."""
 
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -11,7 +11,7 @@ from app.schemas.database import User
 
 
 class CRUDUser(CRUDBase):
-    async def get_by_email(self, db: AsyncSession, *, email: str) -> Optional[User]:
+    async def get_by_email(self, db: AsyncSession, *, email: str) -> User | None:
         result = await db.execute(select(User).filter(User.email == email))
         return result.scalar_one_or_none()
 
@@ -46,7 +46,7 @@ class CRUDUser(CRUDBase):
         db: AsyncSession,
         *,
         db_obj: User,
-        obj_in: Union[UserUpdateRequest, Dict[str, Any]],
+        obj_in: UserUpdateRequest | dict[str, Any],
     ) -> User:
         if isinstance(obj_in, dict):
             update_data = obj_in

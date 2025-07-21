@@ -2,10 +2,9 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any
 
 from app.core.deepgram_formatter import DeepgramFormatter
-from app.schemas.database import JobStatus
 
 logger = logging.getLogger(__name__)
 
@@ -13,12 +12,14 @@ logger = logging.getLogger(__name__)
 def get_audio_processor_instance():
     """Lazy import to avoid circular dependencies."""
     from app.workers.celery_app import audio_processor_instance
+
     return audio_processor_instance
 
 
 def get_translation_service_instance():
     """Lazy import to avoid circular dependencies."""
     from app.workers.celery_app import translation_service_instance
+
     return translation_service_instance
 
 
@@ -27,13 +28,13 @@ class ProcessingContext:
     A context object to hold and pass data between processing strategies.
     """
 
-    def __init__(self, request_data: Dict[str, Any], audio_path: Any):
+    def __init__(self, request_data: dict[str, Any], audio_path: Any):
         self.request_data = request_data
         self.request_id: str = request_data["request_id"]
         self.audio_path: Any = audio_path
-        self.processing_result: Optional[Dict[str, Any]] = None
-        self.deepgram_result: Optional[Dict[str, Any]] = None
-        self.error: Optional[Exception] = None
+        self.processing_result: dict[str, Any] | None = None
+        self.deepgram_result: dict[str, Any] | None = None
+        self.error: Exception | None = None
 
     def is_failed(self) -> bool:
         """Check if the context has an error."""
@@ -73,7 +74,7 @@ class TranscriptionStrategy(ProcessingStrategy):
             if audio_processor.whisper_model is None:
                 logger.info("Initializing AudioProcessor models...")
                 await audio_processor.initialize_models()
-                
+
             context.processing_result = await audio_processor.process_audio(
                 audio_path=context.audio_path,
                 language=context.request_data.get("language", "auto"),
@@ -123,9 +124,9 @@ class SummarizationStrategy(ProcessingStrategy):
             from app.services.summarization import SummarizationService
 
             summarization_service = SummarizationService()
-            transcript = context.deepgram_result["results"]["channels"][0][
-                "alternatives"
-            ][0]["transcript"]
+            transcript = context.deepgram_result["results"]["channels"][0]["alternatives"][0][
+                "transcript"
+            ]
             summary = await summarization_service.summarize_text(transcript)
 
             formatter = DeepgramFormatter()
@@ -151,13 +152,13 @@ class TranslationStrategy(ProcessingStrategy):
                 return context
 
             # Ensure models are initialized if needed
-            if not hasattr(translation_service, 'model') or translation_service.model is None:
+            if not hasattr(translation_service, "model") or translation_service.model_name is None:
                 logger.info("Initializing TranslationService models...")
                 await translation_service.initialize_model()
 
-            transcript = context.deepgram_result["results"]["channels"][0][
-                "alternatives"
-            ][0]["transcript"]
+            transcript = context.deepgram_result["results"]["channels"][0]["alternatives"][0][
+                "transcript"
+            ]
             target_lang = context.request_data.get("target_language")
             source_lang = context.request_data.get("language", "en")
 
@@ -191,15 +192,11 @@ class GraphProcessingStrategy(ProcessingStrategy):
 
             graph_data = {
                 "job_id": context.request_id,
-                "audio_file_id": context.request_data.get(
-                    "audio_file_id", context.request_id
-                ),
+                "audio_file_id": context.request_data.get("audio_file_id", context.request_id),
                 "language": context.request_data.get("language", "auto"),
                 "segments": context.processing_result.get("segments", []),
             }
-            graph_result = await graph_processor.process_transcription_result(
-                graph_data
-            )
+            graph_result = await graph_processor.process_transcription_result(graph_data)
 
             if context.deepgram_result:
                 if "metadata" not in context.deepgram_result:
@@ -230,11 +227,13 @@ class SentimentAnalysisStrategy(ProcessingStrategy):
 
         try:
             from app.core.graph_processor import graph_processor
-            
+
             logger.info(f"🎭 Running sentiment analysis for request {context.request_id}")
-            
+
             if not context.processing_result or not context.processing_result.get("segments"):
-                context.error = Exception("No transcription segments available for sentiment analysis")
+                context.error = Exception(
+                    "No transcription segments available for sentiment analysis"
+                )
                 return context
 
             # Check if sentiment analysis is enabled
@@ -246,26 +245,30 @@ class SentimentAnalysisStrategy(ProcessingStrategy):
             # Run sentiment analysis on each segment
             segments = context.processing_result["segments"]
             analyzed_segments = []
-            
+
             for segment in segments:
                 text = segment.get("text", "").strip()
                 if text:
                     try:
                         if graph_processor.llm_sentiment_analyzer:
-                            sentiment_data = await graph_processor.llm_sentiment_analyzer.analyze_sentiment(text)
+                            sentiment_data = (
+                                await graph_processor.llm_sentiment_analyzer.analyze_sentiment(text)
+                            )
                             segment["sentiment"] = sentiment_data
-                            logger.debug(f"Sentiment for '{text[:30]}...': {sentiment_data.get('sentiment', 'unknown')}")
+                            logger.debug(
+                                f"Sentiment for '{text[:30]}...': {sentiment_data.get('sentiment', 'unknown')}"
+                            )
                     except Exception as e:
                         logger.warning(f"Sentiment analysis failed for segment: {e}")
                         segment["sentiment"] = {
                             "sentiment": "neutral",
                             "confidence": 0.5,
                             "emotions": [],
-                            "intensity": 0.5
+                            "intensity": 0.5,
                         }
-                
+
                 analyzed_segments.append(segment)
-            
+
             # Update processing result with sentiment data
             context.processing_result["segments"] = analyzed_segments
             logger.info(f"✅ Sentiment analysis completed for {len(analyzed_segments)} segments")
@@ -289,17 +292,19 @@ class KeywordSpottingStrategy(ProcessingStrategy):
 
         try:
             from app.core.graph_processor import graph_processor
-            
+
             logger.info(f"🔍 Running keyword spotting for request {context.request_id}")
-            
+
             if not context.processing_result or not context.processing_result.get("segments"):
-                context.error = Exception("No transcription segments available for keyword spotting")
+                context.error = Exception(
+                    "No transcription segments available for keyword spotting"
+                )
                 return context
 
             # Run entity extraction on each segment
             segments = context.processing_result["segments"]
             enhanced_segments = []
-            
+
             for segment in segments:
                 text = segment.get("text", "").strip()
                 if text:
@@ -310,30 +315,29 @@ class KeywordSpottingStrategy(ProcessingStrategy):
                             {
                                 "text": entity_text,
                                 "type": entity_type,
-                                "confidence": confidence
+                                "confidence": confidence,
                             }
                             for entity_text, entity_type, confidence in entities
                         ]
-                        
+
                         # Extract topics
                         topics = await graph_processor._extract_topics(text)
                         segment["topics"] = [
-                            {
-                                "name": topic_name,
-                                "confidence": confidence
-                            }
+                            {"name": topic_name, "confidence": confidence}
                             for topic_name, confidence in topics
                         ]
-                        
-                        logger.debug(f"Found {len(entities)} entities and {len(topics)} topics in segment")
-                        
+
+                        logger.debug(
+                            f"Found {len(entities)} entities and {len(topics)} topics in segment"
+                        )
+
                     except Exception as e:
                         logger.warning(f"Keyword spotting failed for segment: {e}")
                         segment["entities"] = []
                         segment["topics"] = []
-                
+
                 enhanced_segments.append(segment)
-            
+
             # Update processing result with keyword data
             context.processing_result["segments"] = enhanced_segments
             logger.info(f"✅ Keyword spotting completed for {len(enhanced_segments)} segments")

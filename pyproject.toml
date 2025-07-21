@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 packages = ["app"]
 
 [project]
-name = "audio-processor"
+name = "audio_processor"
 version = "0.1.0"
 description = "FastAPI-based audio processing service with transcription, diarization, and summarization"
 readme = "README.md"
@@ -57,7 +57,7 @@ dev = [
 ]
 test = [
     "pytest>=7.0",
-    "pytest-asyncio", 
+    "pytest-asyncio",
     "pytest-cov",
     "pytest-mock",
     "httpx",
@@ -73,9 +73,14 @@ Issues = "https://github.com/your-org/audio-processor/issues"
 [dependency-groups]
 dev = [
     "autoflake>=2.3.1",
+    "flake8-docstrings>=1.7.0",
+    "mypy>=1.17.0",
     "pip-audit>=2.9.0",
+    "pre-commit>=4.2.0",
+    "pydocstyle>=6.3.0",
     "pyright>=1.1.402",
     "pytest-asyncio>=1.0.0",
+    "ruff>=0.12.4",
     "safety>=3.5.2",
 ]
 
@@ -164,3 +169,46 @@ venv = ".venv"
 root = "."
 pythonVersion = "3.12"
 extraPaths = ["app"]
+
+[tool.pydocstyle]
+convention = "google"
+add_ignore = "D100,D101,D102,D103,D104,D105,D106,D107" # Start with a relaxed config
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false  # Start with relaxed typing
+ignore_missing_imports = true
+exclude = [
+    "migrations/",
+    "__pycache__/",
+    ".pytest_cache/",
+    "tests/",
+]
+
+[tool.ruff]
+line-length = 100  # Slightly more lenient than 88
+target-version = "py312"
+
+[tool.ruff.lint]
+# Enable specific rule groups
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+]
+
+# Ignore specific rules
+ignore = [
+    "E402",  # Module level import not at top of file (for scripts with dynamic imports)
+    "E501",  # Line too long (handled by formatter)
+    "F401",  # Imported but unused (can be useful for re-exports)
+    "F841",  # Local variable assigned but never used (can be useful for debugging)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/*" = ["E", "F", "W"]     # Be very lenient with scripts
+"tests/*" = ["F401", "F841"]      # Be more lenient with tests
+"migrations/*" = ["E", "F", "W"]  # Be very lenient with migrations

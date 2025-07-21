@@ -47,19 +47,19 @@ sequenceDiagram
     participant API
     participant Auth
     participant DB
-    
+
     Client->>API: GET /users/me (with JWT)
     API->>Auth: Validate JWT token
     Auth->>API: Return user info (email, name, roles)
     API->>DB: Look up user by email
-    
+
     alt User exists
         DB->>API: Return existing user
     else User doesn't exist
         API->>DB: Create new user from token data
         DB->>API: Return new user
     end
-    
+
     API->>Client: Return user profile
 ```
 
@@ -138,7 +138,7 @@ curl -H "Authorization: Bearer <ADMIN_JWT>" \
 
 No additional configuration is required! The system works with your existing:
 - Keycloak/JWT authentication setup
-- Database configuration  
+- Database configuration
 - FastAPI application structure
 
 ## 📈 Next Steps
@@ -146,7 +146,7 @@ No additional configuration is required! The system works with your existing:
 The implementation is complete and ready for production use. Optional enhancements could include:
 
 1. **User Lifecycle Management**: Automated user deactivation/cleanup
-2. **Enhanced Role Mapping**: Complex role mapping from JWT claims  
+2. **Enhanced Role Mapping**: Complex role mapping from JWT claims
 3. **Multi-Tenant Support**: Extend JIT provisioning for tenant isolation
 4. **Analytics Dashboard**: User provisioning metrics and insights
 5. **Bulk Operations**: API endpoints for bulk user management

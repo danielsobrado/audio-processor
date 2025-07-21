@@ -8,9 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import CurrentUser, get_current_user
-from app.db import crud
-from app.db.session import get_async_session
+from app.api.dependencies import CurrentUser
 from app.main import app
 from app.schemas.database import User
 
@@ -68,7 +66,6 @@ class TestUserProfileEndpoints:
             patch("app.db.crud.user.get_by_email", return_value=None),
             patch("app.db.crud.user.create_from_token") as mock_create,
         ):
-
             # Mock the created user
             mock_user = User(
                 id=1,
@@ -116,7 +113,6 @@ class TestUserProfileEndpoints:
             patch("app.db.crud.user.get_by_email", return_value=existing_user),
             patch("app.db.crud.user.create_from_token") as mock_create,
         ):
-
             response = client.get("/api/v1/users/me")
 
             # Verify response
@@ -158,7 +154,6 @@ class TestUserProfileEndpoints:
             patch("app.db.crud.user.create_from_token") as mock_create,
             patch("app.db.crud.user.update") as mock_update,
         ):
-
             # Mock the created and updated user
             mock_user = User(
                 id=1,
@@ -217,7 +212,6 @@ class TestUserProfileEndpoints:
             patch("app.db.crud.user.create_from_token") as mock_create,
             patch("app.db.crud.user.update") as mock_update,
         ):
-
             updated_user = User(
                 id=1,
                 email=mock_current_user.email,
@@ -254,7 +248,6 @@ class TestUserProfileEndpoints:
             patch("app.api.v1.endpoints.users.require_roles") as mock_require_roles,
             patch("app.db.crud.user.get_multi", return_value=mock_users),
         ):
-
             # Mock the admin role requirement
             mock_require_roles.return_value = lambda: None
 
@@ -290,7 +283,6 @@ class TestUserProfileEndpoints:
                 side_effect=ImportError("CRUD not available"),
             ),
         ):
-
             response = client.get("/api/v1/users/me")
 
             # Should still return 200 with mock data
@@ -318,7 +310,6 @@ class TestUserProfileEndpoints:
                 "app.core.security.get_password_hash", return_value="hashed_password"
             ),
         ):
-
             mock_user = User(
                 id=1,
                 email=user_data["email"],
@@ -364,7 +355,6 @@ class TestUserProfileEndpoints:
             ),
             patch("app.db.crud.user.get_by_email", return_value=existing_user),
         ):
-
             response = client.post("/api/v1/users/", json=user_data)
 
             # Should return 400 for duplicate email

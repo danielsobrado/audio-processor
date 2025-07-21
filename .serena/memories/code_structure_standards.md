@@ -6,7 +6,7 @@
 Following domain-driven design principles, all schemas are consolidated in the `app/schemas/` directory:
 
 - **`app/schemas/database.py`** - SQLAlchemy database models (User, TranscriptionJob, etc.)
-- **`app/schemas/graph.py`** - Neo4j graph models (Nodes, Relationships, etc.)  
+- **`app/schemas/graph.py`** - Neo4j graph models (Nodes, Relationships, etc.)
 - **`app/schemas/api.py`** - FastAPI request/response models (Pydantic models)
 - **`app/schemas/__init__.py`** - Package initialization and exports
 
@@ -16,7 +16,7 @@ Following Python naming conventions for consistency:
 - **File names**: Descriptive without redundant suffixes
   - ✅ `transcription.py`, `diarization.py`, `graph.py`, `cache.py`
   - ❌ `transcription_service.py`, `graph_service.py`
-  
+
 - **Class names**: Always include "Service" suffix
   - ✅ `TranscriptionService`, `GraphService`, `CacheService`
   - ❌ `TranscriptionHandler`, `GraphManager`
@@ -63,7 +63,7 @@ app/
 
 ### **Schema Separation**
 - **Database Models**: Persistent data storage (SQLAlchemy)
-- **Graph Models**: Graph database entities (Neo4j)  
+- **Graph Models**: Graph database entities (Neo4j)
 - **API Models**: Request/response contracts (Pydantic)
 
 ### **Service Layer**

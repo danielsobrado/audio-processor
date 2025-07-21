@@ -77,9 +77,7 @@ async def get_transcription_results(
             detail="Job completed but no results available",
         )
 
-    logger.info(
-        f"Transcription results retrieved for job {request_id} by user {user_id}"
-    )
+    logger.info(f"Transcription results retrieved for job {request_id} by user {user_id}")
 
     # Return Deepgram-formatted results
     return JSONResponse(content=job.result)

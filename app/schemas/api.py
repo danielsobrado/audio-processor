@@ -1,7 +1,7 @@
 """API request and response models."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -12,15 +12,13 @@ class TranscriptionRequest(BaseModel):
 
     request_id: str = Field(..., description="Unique request identifier")
     user_id: str = Field(..., description="User identifier")
-    audio_url: Optional[str] = Field(None, description="URL to audio file")
-    language: Optional[str] = Field("auto", description="Language code or 'auto'")
-    model: Optional[str] = Field("base", description="Transcription model size")
+    audio_url: str | None = Field(None, description="URL to audio file")
+    language: str | None = Field("auto", description="Language code or 'auto'")
+    model: str | None = Field("base", description="Transcription model size")
     include_diarization: bool = Field(False, description="Enable speaker diarization")
     include_summarization: bool = Field(False, description="Enable text summarization")
     include_translation: bool = Field(False, description="Enable translation")
-    target_language: Optional[str] = Field(
-        None, description="Target language for translation"
-    )
+    target_language: str | None = Field(None, description="Target language for translation")
 
 
 class UserCreateRequest(BaseModel):
@@ -28,15 +26,15 @@ class UserCreateRequest(BaseModel):
 
     email: EmailStr
     password: str = Field(..., min_length=8)
-    full_name: Optional[str] = None
+    full_name: str | None = None
 
 
 class UserUpdateRequest(BaseModel):
     """Request model for updating a user's profile."""
 
-    email: Optional[EmailStr] = None
-    full_name: Optional[str] = None
-    is_active: Optional[bool] = None
+    email: EmailStr | None = None
+    full_name: str | None = None
+    is_active: bool | None = None
 
 
 # Response Models
@@ -47,8 +45,8 @@ class JobStatusResponse(BaseModel):
     status: str
     created: datetime
     updated: datetime
-    progress: Optional[float] = None
-    error: Optional[str] = None
+    progress: float | None = None
+    error: str | None = None
 
 
 class JobResponse(BaseModel):
@@ -60,17 +58,17 @@ class JobResponse(BaseModel):
     progress: float
     created: datetime
     updated: datetime
-    result: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
-    task_id: Optional[str] = None
-    job_type: Optional[str] = None
-    parameters: Optional[Dict[str, Any]] = None
+    result: dict[str, Any] | None = None
+    error: str | None = None
+    task_id: str | None = None
+    job_type: str | None = None
+    parameters: dict[str, Any] | None = None
 
 
 class AdminJobListResponse(BaseModel):
     """Response model for admin job listing."""
 
-    jobs: List[JobResponse]
+    jobs: list[JobResponse]
     total_count: int
     limit: int
     offset: int
@@ -79,7 +77,7 @@ class AdminJobListResponse(BaseModel):
 class AdminJobRequeueRequest(BaseModel):
     """Request model for requeuing a job."""
 
-    reason: Optional[str] = Field(None, description="Reason for requeuing the job")
+    reason: str | None = Field(None, description="Reason for requeuing the job")
 
 
 class AdminJobRequeueResponse(BaseModel):
@@ -105,17 +103,17 @@ class TranscriptionResult(BaseModel):
 
     request_id: str
     conversation_id: str
-    segments: List[Dict[str, Any]]
-    metadata: Dict[str, Any]
-    summary: Optional[str] = None
-    translation: Optional[str] = None
+    segments: list[dict[str, Any]]
+    metadata: dict[str, Any]
+    summary: str | None = None
+    translation: str | None = None
 
 
 class GraphStatsResponse(BaseModel):
     """Response model for graph statistics."""
 
     enabled: bool
-    stats: Dict[str, Any]
+    stats: dict[str, Any]
 
 
 class SpeakerResponse(BaseModel):
@@ -142,11 +140,11 @@ class ConversationGraphResponse(BaseModel):
     """Response model for conversation graph."""
 
     conversation_id: str
-    speakers: List[str]
-    topics: List[str]
-    entities: List[str]
-    interactions: List[Dict[str, Any]]
-    metadata: Dict[str, Any]
+    speakers: list[str]
+    topics: list[str]
+    entities: list[str]
+    interactions: list[dict[str, Any]]
+    metadata: dict[str, Any]
 
 
 class SpeakerNetworkResponse(BaseModel):
@@ -154,8 +152,8 @@ class SpeakerNetworkResponse(BaseModel):
 
     speaker_id: str
     name: str
-    direct_interactions: List[Dict[str, Any]]
-    network_stats: Dict[str, Any]
+    direct_interactions: list[dict[str, Any]]
+    network_stats: dict[str, Any]
 
 
 class TopicFlowResponse(BaseModel):
@@ -163,9 +161,9 @@ class TopicFlowResponse(BaseModel):
 
     topic_id: str
     name: str
-    flow_patterns: List[Dict[str, Any]]
-    keywords: List[str]
-    usage_stats: Dict[str, Any]
+    flow_patterns: list[dict[str, Any]]
+    keywords: list[str]
+    usage_stats: dict[str, Any]
 
 
 class HealthResponse(BaseModel):
@@ -173,7 +171,7 @@ class HealthResponse(BaseModel):
 
     status: str
     timestamp: datetime
-    services: Dict[str, str]
+    services: dict[str, str]
     version: str
 
 
@@ -185,10 +183,10 @@ class UserResponse(BaseModel):
 
     id: int
     email: EmailStr
-    full_name: Optional[str] = None
+    full_name: str | None = None
     is_active: bool
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
 
 # Enhanced Graph Models
@@ -197,12 +195,12 @@ class SpeakerProfileResponse(BaseModel):
 
     speaker_id: str
     name: str
-    voice_characteristics: Dict[str, Any]
+    voice_characteristics: dict[str, Any]
     conversation_count: int
     total_speaking_time: float
     avg_speaking_time: float
     total_turns: int
-    topics_discussed: List[str]
+    topics_discussed: list[str]
 
 
 class TopSpeakerResponse(BaseModel):
@@ -230,13 +228,13 @@ class TopicProfileResponse(BaseModel):
 
     topic_id: str
     name: str
-    keywords: List[str]
+    keywords: list[str]
     confidence_score: float
     speaker_count: int
     conversation_count: int
     total_mentions: int
     avg_relevance: float
-    discussing_speakers: List[str]
+    discussing_speakers: list[str]
 
 
 class TrendingTopicResponse(BaseModel):
@@ -244,7 +242,7 @@ class TrendingTopicResponse(BaseModel):
 
     topic_id: str
     topic_name: str
-    keywords: List[str]
+    keywords: list[str]
     unique_speakers: int
     total_mentions: int
     avg_relevance: float

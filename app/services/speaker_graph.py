@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from app.config.settings import get_settings
 from app.db.graph_session import get_graph_db_manager
@@ -18,7 +18,7 @@ class SpeakerGraphService:
         self.settings = get_settings()
         self.batch_size = self.settings.graph.processing_batch_size
 
-    async def create_speaker(self, speaker_data: Dict[str, Any]) -> bool:
+    async def create_speaker(self, speaker_data: dict[str, Any]) -> bool:
         """Create a speaker node in the graph."""
         if not self.settings.graph.enabled:
             logger.debug("Graph processing is disabled")
@@ -59,7 +59,7 @@ class SpeakerGraphService:
             return False
 
     async def link_speaker_to_conversation(
-        self, speaker_id: str, conversation_id: str, speaking_stats: Dict[str, Any]
+        self, speaker_id: str, conversation_id: str, speaking_stats: dict[str, Any]
     ) -> bool:
         """Link a speaker to a conversation with speaking statistics."""
         if not self.settings.graph.enabled:
@@ -92,9 +92,7 @@ class SpeakerGraphService:
             )
 
             if result:
-                logger.info(
-                    f"Linked speaker {speaker_id} to conversation {conversation_id}"
-                )
+                logger.info(f"Linked speaker {speaker_id} to conversation {conversation_id}")
                 return True
             return False
 
@@ -102,7 +100,7 @@ class SpeakerGraphService:
             logger.error(f"Failed to link speaker to conversation: {e}")
             return False
 
-    async def get_speaker_profile(self, speaker_id: str) -> Dict[str, Any]:
+    async def get_speaker_profile(self, speaker_id: str) -> dict[str, Any]:
         """Get comprehensive speaker profile with statistics."""
         if not self.settings.graph.enabled:
             return {}
@@ -121,9 +119,7 @@ class SpeakerGraphService:
                    collect(DISTINCT t.name) as topics_discussed
             """
 
-            result = await manager.execute_read_transaction(
-                query, {"speaker_id": speaker_id}
-            )
+            result = await manager.execute_read_transaction(query, {"speaker_id": speaker_id})
 
             if result:
                 data = result[0]
@@ -131,9 +127,7 @@ class SpeakerGraphService:
                 return {
                     "speaker_id": speaker_id,
                     "name": speaker_info.get("name", f"Speaker_{speaker_id}"),
-                    "voice_characteristics": speaker_info.get(
-                        "voice_characteristics", {}
-                    ),
+                    "voice_characteristics": speaker_info.get("voice_characteristics", {}),
                     "conversation_count": data.get("conversation_count", 0),
                     "total_speaking_time": data.get("total_speaking_time", 0.0),
                     "avg_speaking_time": data.get("avg_speaking_time", 0.0),
@@ -146,9 +140,7 @@ class SpeakerGraphService:
             logger.error(f"Failed to get speaker profile: {e}")
             return {}
 
-    async def get_speaker_network(
-        self, speaker_id: str, max_depth: int = 2
-    ) -> Dict[str, Any]:
+    async def get_speaker_network(self, speaker_id: str, max_depth: int = 2) -> dict[str, Any]:
         """Get speaker's interaction network up to specified depth."""
         if not self.settings.graph.enabled:
             return {}
@@ -169,9 +161,7 @@ class SpeakerGraphService:
             LIMIT 50
             """
 
-            result = await manager.execute_read_transaction(
-                query, {"speaker_id": speaker_id}
-            )
+            result = await manager.execute_read_transaction(query, {"speaker_id": speaker_id})
 
             network_data = {
                 "speaker_id": speaker_id,
@@ -200,7 +190,7 @@ class SpeakerGraphService:
             logger.error(f"Failed to get speaker network: {e}")
             return {}
 
-    async def get_speaker_interaction_patterns(self, speaker_id: str) -> Dict[str, Any]:
+    async def get_speaker_interaction_patterns(self, speaker_id: str) -> dict[str, Any]:
         """Analyze speaker's interaction patterns and communication style."""
         if not self.settings.graph.enabled:
             return {}
@@ -227,9 +217,7 @@ class SpeakerGraphService:
                    avg(avg_pause_duration) as avg_pause_between_turns
             """
 
-            result = await manager.execute_read_transaction(
-                query, {"speaker_id": speaker_id}
-            )
+            result = await manager.execute_read_transaction(query, {"speaker_id": speaker_id})
 
             if result:
                 data = result[0]
@@ -249,7 +237,7 @@ class SpeakerGraphService:
             logger.error(f"Failed to get speaker interaction patterns: {e}")
             return {}
 
-    def _analyze_communication_style(self, data: Dict[str, Any]) -> str:
+    def _analyze_communication_style(self, data: dict[str, Any]) -> str:
         """Analyze communication style based on speaking patterns."""
         avg_duration = data.get("avg_segment_duration", 0.0)
         avg_pause = data.get("avg_pause_between_turns", 0.0)
@@ -272,7 +260,7 @@ class SpeakerGraphService:
 
     async def get_top_speakers(
         self, limit: int = 10, metric: str = "speaking_time"
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get top speakers based on specified metric."""
         if not self.settings.graph.enabled:
             return []
@@ -308,7 +296,7 @@ class SpeakerGraphService:
 
     async def find_similar_speakers(
         self, speaker_id: str, similarity_threshold: float = 0.7
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Find speakers with similar communication patterns."""
         if not self.settings.graph.enabled:
             return []
@@ -335,17 +323,13 @@ class SpeakerGraphService:
                    total_speaking_time
             """
 
-            result = await manager.execute_read_transaction(
-                query, {"speaker_id": speaker_id}
-            )
+            result = await manager.execute_read_transaction(query, {"speaker_id": speaker_id})
 
             similar_speakers = []
             target_avg_duration = target_pattern.get("avg_segment_duration", 0.0)
 
             for record in result:
-                duration_diff = abs(
-                    record["avg_segment_duration"] - target_avg_duration
-                )
+                duration_diff = abs(record["avg_segment_duration"] - target_avg_duration)
                 similarity = max(0, 1 - (duration_diff / max(target_avg_duration, 1.0)))
 
                 if similarity >= similarity_threshold:
@@ -358,9 +342,7 @@ class SpeakerGraphService:
                         }
                     )
 
-            return sorted(
-                similar_speakers, key=lambda x: x["similarity_score"], reverse=True
-            )
+            return sorted(similar_speakers, key=lambda x: x["similarity_score"], reverse=True)
 
         except Exception as e:
             logger.error(f"Failed to find similar speakers: {e}")

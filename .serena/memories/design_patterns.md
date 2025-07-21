@@ -12,7 +12,7 @@ Example:
 class TranscriptionService:
     async def submit_transcription_job(self, request, audio_file):
         # Business logic here
-        
+
 # Controller handles HTTP
 @router.post("/transcribe")
 async def transcribe_audio(request: TranscriptionRequest):

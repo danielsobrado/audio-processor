@@ -2,11 +2,6 @@
 Tests for URL processing API feature flag.
 """
 
-from unittest.mock import MagicMock
-
-import pytest
-from fastapi import HTTPException
-
 
 def test_feature_flag_logic():
     """Test the URL processing feature flag logic without importing full dependencies."""
@@ -20,7 +15,7 @@ def test_feature_flag_logic():
     )
     transcribe_file = os.path.normpath(transcribe_file)
 
-    with open(transcribe_file, "r", encoding="utf-8") as f:
+    with open(transcribe_file, encoding="utf-8") as f:
         source = f.read()
 
     # Verify feature flag check is present

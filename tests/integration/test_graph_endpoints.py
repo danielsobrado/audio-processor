@@ -1,6 +1,6 @@
 """Integration tests for graph API endpoints."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient

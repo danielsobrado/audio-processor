@@ -1,6 +1,6 @@
 """Test cases for user management API endpoints."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -50,7 +50,6 @@ class TestUserManagement:
             patch("app.db.crud.user.get_by_email", return_value=None),
             patch("app.db.crud.user.create", return_value=mock_user),
         ):
-
             response = client.post(
                 "/api/v1/users/",
                 json={
@@ -115,7 +114,6 @@ class TestUserManagement:
             patch("app.db.crud.user.get_by_email", return_value=mock_user),
             patch("app.db.crud.user.update", return_value=updated_user),
         ):
-
             response = client.put(
                 "/api/v1/users/me", json={"full_name": "Updated Test User"}
             )
@@ -132,7 +130,6 @@ class TestUserManagement:
             ),
             patch("app.db.crud.user.get_by_email", return_value=None),
         ):
-
             response = client.put(
                 "/api/v1/users/me", json={"full_name": "Updated Test User"}
             )
@@ -147,7 +144,6 @@ class TestUserManagement:
             patch("app.api.v1.endpoints.users.require_roles") as mock_require_roles,
             patch("app.db.crud.user.get_multi", return_value=[]),
         ):
-
             mock_require_roles.return_value = lambda: None  # Mock admin check
 
             response = client.get("/api/v1/users/")
@@ -160,7 +156,6 @@ class TestUserManagement:
             patch("app.api.v1.endpoints.users.require_roles") as mock_require_roles,
             patch("app.api.v1.endpoints.users.crud", side_effect=ImportError()),
         ):
-
             mock_require_roles.return_value = lambda: None  # Mock admin check
 
             response = client.get("/api/v1/users/")
@@ -190,6 +185,7 @@ class TestUserValidation:
     def test_create_user_missing_required_fields(self, client):
         """Test user creation with missing required fields."""
         response = client.post(
-            "/api/v1/users/", json={"email": "testuser@example.com"}  # Missing password
+            "/api/v1/users/",
+            json={"email": "testuser@example.com"},  # Missing password
         )
         assert response.status_code == 422  # Validation error

@@ -3,7 +3,7 @@ Redis caching service.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import redis.asyncio as redis
 
@@ -21,7 +21,7 @@ class CacheService:
     def __init__(self):
         self.redis_client = redis.from_url(settings.redis.url)
 
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         """
         Get a value from the cache.
 
@@ -29,7 +29,7 @@ class CacheService:
             key: The key to retrieve.
 
         Returns:
-            The value from the cache, or None if not found.
+            The value from the cache, or None if not found or on error.
         """
 
         try:
@@ -38,7 +38,7 @@ class CacheService:
             logger.error(f"Failed to get key {key} from cache: {e}", exc_info=True)
             return None
 
-    async def set(self, key: str, value: Any, expire: int = 3600):
+    async def set(self, key: str, value: Any, expire: int = 3600) -> None:
         """
         Set a value in the cache.
 
@@ -53,7 +53,7 @@ class CacheService:
         except Exception as e:
             logger.error(f"Failed to set key {key} in cache: {e}", exc_info=True)
 
-    async def delete(self, key: str):
+    async def delete(self, key: str) -> None:
         """
         Delete a key from the cache.
 

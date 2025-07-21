@@ -113,7 +113,7 @@ async def main():
             print(f"❌ Processing failed: {result.get('error')}")
             return
 
-        print(f"✅ Graph populated successfully!")
+        print("✅ Graph populated successfully!")
         print(f"   - Nodes created: {result.get('nodes_created', 'N/A')}")
         print(
             f"   - Relationships created: {result.get('relationships_created', 'N/A')}"
@@ -122,11 +122,11 @@ async def main():
         print("\n" + "=" * 60)
         print("🎨 NEO4J VISUALIZATION INSTRUCTIONS")
         print("=" * 60)
-        print(f"1. Open Neo4j Browser. If using Docker, go to: http://localhost:7474")
+        print("1. Open Neo4j Browser. If using Docker, go to: http://localhost:7474")
         print(
             f"2. Login with user '{settings.graph.database.username}' and the configured password."
         )
-        print(f"3. Run these Cypher queries for different views:")
+        print("3. Run these Cypher queries for different views:")
         print()
 
         print("📈 1. View the Full Conversation Graph:")

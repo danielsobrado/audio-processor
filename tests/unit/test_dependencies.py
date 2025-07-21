@@ -2,14 +2,13 @@
 Unit tests for API dependencies, including authentication and caching logic.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 # Import the function and globals we need to test/manipulate
 from app.api.dependencies import get_jwks_keys
-from app.config.settings import Settings
 
 
 @pytest.fixture(autouse=True)
@@ -47,7 +46,7 @@ async def test_get_jwks_uses_default_ttl(mock_http_client):
         mock_http_client.return_value.__aenter__.return_value = mock_context_manager
 
         # Mock datetime.now to control time
-        start_time = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        start_time = datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC)
         with patch("app.api.dependencies.datetime") as mock_datetime:
             mock_datetime.now.return_value = start_time
             mock_datetime.timedelta = timedelta  # Ensure we use the real timedelta
@@ -84,7 +83,7 @@ async def test_get_jwks_uses_custom_ttl(mock_http_client):
         mock_context_manager.get.return_value = mock_response
         mock_http_client.return_value.__aenter__.return_value = mock_context_manager
 
-        start_time = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        start_time = datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC)
         with patch("app.api.dependencies.datetime") as mock_datetime:
             mock_datetime.now.return_value = start_time
             mock_datetime.timedelta = timedelta
@@ -108,7 +107,7 @@ async def test_get_jwks_cache_hit(mock_http_client):
     import app.api.dependencies as deps
 
     deps._jwks_cache = {"key1": {"kid": "key1", "kty": "RSA"}}
-    deps._jwks_cache_expiry = datetime.now(timezone.utc) + timedelta(minutes=5)
+    deps._jwks_cache_expiry = datetime.now(UTC) + timedelta(minutes=5)
 
     # ACT
     keys = await get_jwks_keys()
@@ -126,7 +125,7 @@ async def test_get_jwks_cache_miss_due_to_expiry(mock_http_client):
     import app.api.dependencies as deps
 
     deps._jwks_cache = {"key1": {"kid": "key1", "kty": "RSA"}}
-    deps._jwks_cache_expiry = datetime.now(timezone.utc) - timedelta(
+    deps._jwks_cache_expiry = datetime.now(UTC) - timedelta(
         minutes=1
     )  # Expired 1 minute ago
 

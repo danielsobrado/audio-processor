@@ -1,21 +1,10 @@
 """Unit tests for graph service functionality."""
 
-from datetime import datetime
-from typing import Any, Dict, List
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.core.graph_processor import GraphProcessor
-from app.schemas.graph import (
-    ConversationNode,
-    EntityNode,
-    NodeType,
-    RelationshipType,
-    SpeakerNode,
-    TopicNode,
-    TranscriptSegmentNode,
-)
 from app.services.graph_service import GraphService
 
 

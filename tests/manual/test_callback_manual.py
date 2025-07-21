@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, patch
 # Example callback payloads that the system will send
 
 
-def example_success_payload() -> Dict[str, Any]:
+def example_success_payload() -> dict[str, Any]:
     """Example payload sent for successful transcription."""
     return {
         "request_id": "abc-123-def-456",
@@ -56,7 +56,7 @@ def example_success_payload() -> Dict[str, Any]:
     }
 
 
-def example_failure_payload() -> Dict[str, Any]:
+def example_failure_payload() -> dict[str, Any]:
     """Example payload sent for failed transcription."""
     return {
         "request_id": "xyz-789-uvw-012",
@@ -189,34 +189,34 @@ def handle_transcription_callback():
     """Handle transcription completion callbacks."""
     try:
         payload = request.get_json()
-        
+
         print(f"Received callback for job: {payload.get('request_id')}")
         print(f"Status: {payload.get('status')}")
         print(f"Timestamp: {payload.get('timestamp')}")
-        
+
         if payload.get('status') == 'completed':
             result = payload.get('result', {})
             transcript = result.get('results', {}).get('channels', [{}])[0].get('alternatives', [{}])[0].get('transcript', '')
             print(f"Transcript: {transcript[:100]}...")
-            
+
             # Your business logic here
             # - Save to database
             # - Send notifications
             # - Update UI via WebSocket
             # - etc.
-            
+
         elif payload.get('status') == 'failed':
             error = payload.get('error')
             print(f"Transcription failed: {error}")
-            
+
             # Your error handling here
             # - Log error
             # - Retry logic
             # - User notification
             # - etc.
-        
+
         return jsonify({"status": "received"}), 200
-        
+
     except Exception as e:
         print(f"Error processing callback: {e}")
         return jsonify({"error": str(e)}), 400

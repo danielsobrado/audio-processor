@@ -53,7 +53,7 @@ def test_crud_instantiation():
     print("\n=== Testing CRUD Instantiation ===")
 
     crud_user = CRUDUser(User)
-    print(f"✓ Created CRUDUser instance")
+    print("✓ Created CRUDUser instance")
     print(f"  - Model: {crud_user.model}")
 
 

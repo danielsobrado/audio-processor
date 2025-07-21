@@ -5,7 +5,7 @@ API endpoint for checking the status of a transcription job.
 import logging
 import uuid
 from datetime import datetime
-from typing import Optional, cast
+from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -60,6 +60,6 @@ async def get_job_status(
         status=cast(str, job.status),
         created=cast(datetime, job.created_at),
         updated=cast(datetime, job.updated_at),
-        progress=cast(Optional[float], job.progress),
-        error=cast(Optional[str], job.error),
+        progress=cast(float | None, job.progress),
+        error=cast(str | None, job.error),
     )

@@ -4,7 +4,6 @@ Pytest configuration and shared fixtures for all tests.
 
 import os
 import sys
-from functools import lru_cache
 from unittest.mock import patch
 
 import pytest
@@ -13,7 +12,6 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # Explicitly import the app package (now discoverable)
-import app
 
 # Clear the settings cache before importing anything from app
 from app.config.settings import get_settings
@@ -37,6 +35,10 @@ os.environ.update(
         "ENABLE_URL_PROCESSING": "True",
         "ENABLE_TRANSLATION": "False",  # Disable external services in tests
         "ENABLE_SUMMARIZATION": "False",
+        # Diarization test configuration
+        "DIARIZATION_MIN_SPEAKERS": "2",
+        "DIARIZATION_MAX_SPEAKERS": "10",
+        "DIARIZATION_ENABLED": "false",
         # Graph database test configuration
         "GRAPH_ENABLED": "False",  # Disable graph by default in tests
         "NEO4J_URL": "bolt://localhost:7687",

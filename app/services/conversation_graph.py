@@ -1,7 +1,7 @@
 """Conversation graph service for conversation-specific graph operations."""
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 from app.config.settings import get_settings
 from app.db.graph_session import get_graph_db_manager
@@ -17,7 +17,7 @@ class ConversationGraphService:
         self.settings = get_settings()
         self.batch_size = self.settings.graph.processing_batch_size
 
-    async def create_conversation(self, conversation_data: Dict[str, Any]) -> bool:
+    async def create_conversation(self, conversation_data: dict[str, Any]) -> bool:
         """Create a conversation node in the graph."""
         if not self.settings.graph.enabled:
             logger.debug("Graph processing is disabled")
@@ -41,9 +41,7 @@ class ConversationGraphService:
             )
 
             if result:
-                logger.info(
-                    f"Created conversation: {conversation_data['conversation_id']}"
-                )
+                logger.info(f"Created conversation: {conversation_data['conversation_id']}")
                 return True
             return False
 
@@ -52,7 +50,7 @@ class ConversationGraphService:
             return False
 
     async def add_transcript_segments(
-        self, conversation_id: str, segments: List[Dict[str, Any]]
+        self, conversation_id: str, segments: list[dict[str, Any]]
     ) -> int:
         """Add transcript segments to a conversation."""
         if not self.settings.graph.enabled:
@@ -64,7 +62,7 @@ class ConversationGraphService:
 
             # Create segments in batches
             for i in range(0, len(segments), self.batch_size):
-                batch = segments[i: i + self.batch_size]
+                batch = segments[i : i + self.batch_size]
 
                 # Prepare segment nodes
                 segment_props = []
@@ -97,16 +95,14 @@ class ConversationGraphService:
                 if result:
                     created_count += result[0]["created_count"]
 
-            logger.info(
-                f"Added {created_count} segments to conversation {conversation_id}"
-            )
+            logger.info(f"Added {created_count} segments to conversation {conversation_id}")
             return created_count
 
         except Exception as e:
             logger.error(f"Failed to add transcript segments: {e}")
             return 0
 
-    async def get_conversation_overview(self, conversation_id: str) -> Dict[str, Any]:
+    async def get_conversation_overview(self, conversation_id: str) -> dict[str, Any]:
         """Get conversation overview with basic statistics."""
         if not self.settings.graph.enabled:
             return {}
@@ -143,9 +139,7 @@ class ConversationGraphService:
             logger.error(f"Failed to get conversation overview: {e}")
             return {}
 
-    async def get_conversation_timeline(
-        self, conversation_id: str
-    ) -> List[Dict[str, Any]]:
+    async def get_conversation_timeline(self, conversation_id: str) -> list[dict[str, Any]]:
         """Get chronological timeline of conversation segments."""
         if not self.settings.graph.enabled:
             return []
@@ -174,9 +168,7 @@ class ConversationGraphService:
             logger.error(f"Failed to get conversation timeline: {e}")
             return []
 
-    async def get_speaker_interactions(
-        self, conversation_id: str
-    ) -> List[Dict[str, Any]]:
+    async def get_speaker_interactions(self, conversation_id: str) -> list[dict[str, Any]]:
         """Get speaker interaction patterns in conversation."""
         if not self.settings.graph.enabled:
             return []
@@ -210,7 +202,7 @@ class ConversationGraphService:
 
     async def search_conversation_content(
         self, conversation_id: str, search_term: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Search for specific content within a conversation."""
         if not self.settings.graph.enabled:
             return []

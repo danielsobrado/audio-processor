@@ -8,8 +8,8 @@ and Kubernetes.
 import logging
 import sys
 import time
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 import uvicorn
 from fastapi import FastAPI, Request
@@ -122,8 +122,7 @@ def create_application() -> FastAPI:
     app = FastAPI(
         title="Audio Processing Microservice",
         description=(
-            "Deepgram-compatible audio processing with WhisperX, "
-            "diarization, and translation"
+            "Deepgram-compatible audio processing with WhisperX, diarization, and translation"
         ),
         version="1.0.0",
         docs_url="/docs" if settings.environment != "production" else None,
@@ -205,17 +204,11 @@ def setup_exception_handlers(app: FastAPI) -> None:
     from app.utils.error_handlers import AudioProcessingError
 
     app.add_exception_handler(HTTPException, http_exception_handler)  # type: ignore
-    app.add_exception_handler(
-        ValidationError, validation_exception_handler
-    )  # type: ignore
-    app.add_exception_handler(
-        AudioProcessingError, audio_processing_exception_handler
-    )  # type: ignore
+    app.add_exception_handler(ValidationError, validation_exception_handler)  # type: ignore
+    app.add_exception_handler(AudioProcessingError, audio_processing_exception_handler)  # type: ignore
 
     @app.exception_handler(Exception)
-    async def global_exception_handler(
-        request: Request, exc: Exception
-    ) -> JSONResponse:
+    async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         """Handle unexpected exceptions."""
         logger.error(
             "Unhandled exception",

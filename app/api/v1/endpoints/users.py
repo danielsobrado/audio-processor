@@ -3,13 +3,16 @@ API endpoints for user management.
 """
 
 import logging
-from datetime import datetime
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user, require_roles
+from app.api.dependencies import (
+    get_current_user,
+    get_settings_dependency,
+    require_roles,
+)
+from app.config.settings import Settings
 from app.core.security import get_password_hash
 from app.db.session import get_async_session
 from app.schemas.api import UserCreateRequest, UserResponse, UserUpdateRequest
@@ -42,9 +45,7 @@ async def create_user(
             )
 
         hashed_password = get_password_hash(user_in.password)
-        created_user = await crud.user.create(
-            db, obj_in=user_in, hashed_password=hashed_password
-        )
+        created_user = await crud.user.create(db, obj_in=user_in, hashed_password=hashed_password)
         return created_user
     except ImportError:
         logger.error("CRUD module not available - user creation disabled")
@@ -79,9 +80,7 @@ async def read_current_user(
         if not db_user:
             # User is authenticated but doesn't have a local profile yet.
             # Create one now (JIT Provisioning).
-            logger.info(
-                f"User '{current_user.email}' not found locally. Provisioning new user."
-            )
+            logger.info(f"User '{current_user.email}' not found locally. Provisioning new user.")
             db_user = await crud.user.create_from_token(db, token_data=current_user)
 
         return db_user
@@ -113,8 +112,7 @@ async def update_current_user(
         db_user = await crud.user.get_by_email(db, email=current_user.email)
         if not db_user:
             logger.info(
-                f"User '{
-                    current_user.email}' not found locally. Provisioning new user for update."
+                f"User '{current_user.email}' not found locally. Provisioning new user for update."
             )
             db_user = await crud.user.create_from_token(db, token_data=current_user)
 
@@ -130,21 +128,30 @@ async def update_current_user(
 
 @router.get(
     "/",
-    response_model=List[UserResponse],
+    response_model=list[UserResponse],
     summary="List all users (Admin only)",
     dependencies=[Depends(require_roles(["admin"]))],
 )
 async def list_users(
     db: AsyncSession = Depends(get_async_session),
-    skip: int = 0,
-    limit: int = 100,
+    skip: int | None = None,
+    limit: int | None = None,
+    settings: Settings = Depends(get_settings_dependency),
 ):
     """Retrieve a list of all users. Requires 'admin' role."""
+
+    # Use settings for defaults
+    final_skip = skip if skip is not None else settings.api.default_offset
+    final_limit = limit if limit is not None else settings.api.default_limit
+
+    if final_limit > settings.api.max_limit:
+        final_limit = settings.api.max_limit
+
     try:
         # Import here to avoid circular imports
         from app.db import crud
 
-        users = await crud.user.get_multi(db, skip=skip, limit=limit)
+        users = await crud.user.get_multi(db, skip=final_skip, limit=final_limit)
         return users
     except ImportError:
         logger.error("CRUD module not available - user listing disabled")

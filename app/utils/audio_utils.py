@@ -31,8 +31,7 @@ async def validate_audio_file(file: UploadFile) -> None:
     if file.size is None or file.size > settings.max_file_size:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File size exceeds limit of {
-                settings.max_file_size / 1024 / 1024:.2f} MB",
+            detail=f"File size exceeds limit of {settings.max_file_size / 1024 / 1024:.2f} MB",
         )
 
     # Check content type and file extension
@@ -42,24 +41,24 @@ async def validate_audio_file(file: UploadFile) -> None:
 
     # Create mapping of MIME types to extensions
     mime_to_ext = {
-        'audio/wav': 'wav',
-        'audio/wave': 'wav', 
-        'audio/x-wav': 'wav',
-        'audio/mpeg': 'mp3',
-        'audio/mp3': 'mp3',
-        'audio/flac': 'flac',
-        'audio/x-flac': 'flac'
+        "audio/wav": "wav",
+        "audio/wave": "wav",
+        "audio/x-wav": "wav",
+        "audio/mpeg": "mp3",
+        "audio/mp3": "mp3",
+        "audio/flac": "flac",
+        "audio/x-flac": "flac",
     }
-    
+
     # Check by MIME type first
     file_extension = None
     if file.content_type and file.content_type in mime_to_ext:
         file_extension = mime_to_ext[file.content_type]
-    
+
     # Fallback to filename extension if MIME type not recognized
     if not file_extension and file.filename:
-        file_extension = Path(file.filename).suffix.lower().lstrip('.')
-    
+        file_extension = Path(file.filename).suffix.lower().lstrip(".")
+
     if not file_extension or file_extension not in supported_formats:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
@@ -76,6 +75,9 @@ async def save_temp_audio_file(file: UploadFile) -> Path:
 
     Returns:
         Path to the temporary file.
+
+    Raises:
+        HTTPException: If file saving fails.
     """
 
     temp_dir = Path(settings.temp_dir)
@@ -117,6 +119,10 @@ async def convert_audio_format(
         target_format: Target audio format (e.g., "wav", "mp3").
         sample_rate: Target sample rate.
         channels: Target number of channels.
+
+    Raises:
+        ImportError: If pydub is not installed.
+        Exception: If audio conversion fails.
     """
 
     try:
@@ -150,7 +156,7 @@ def get_audio_duration(audio_path: Path) -> float:
         audio_path: Path to the audio file.
 
     Returns:
-        Duration in seconds.
+        Duration in seconds, or 0.0 if unable to determine duration.
     """
 
     try:

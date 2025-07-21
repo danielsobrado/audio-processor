@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class NodeType(str, Enum):
@@ -34,16 +34,16 @@ class GraphNode:
 
     id: str
     node_type: NodeType
-    properties: Dict[str, Any]
+    properties: dict[str, Any]
     created_at: datetime
     updated_at: datetime
 
-    def to_cypher_props(self) -> Dict[str, Any]:
+    def to_cypher_props(self) -> dict[str, Any]:
         """Convert to Cypher-compatible properties."""
         import json
-        
+
         props = {}
-        
+
         # Handle nested objects by converting them to JSON strings
         for key, value in self.properties.items():
             if isinstance(value, (dict, list)) and value:  # Only convert non-empty dicts/lists
@@ -52,7 +52,7 @@ class GraphNode:
                 props[key] = None  # Store as null instead of empty object
             else:
                 props[key] = value
-        
+
         # Add base properties
         props.update(
             {
@@ -72,8 +72,8 @@ class SpeakerNode(GraphNode):
     def __init__(
         self,
         speaker_id: str,
-        name: Optional[str] = None,
-        voice_characteristics: Optional[Dict] = None,
+        name: str | None = None,
+        voice_characteristics: dict | None = None,
     ):
         super().__init__(
             id=speaker_id,
@@ -98,7 +98,7 @@ class TopicNode(GraphNode):
         topic_id: str,
         topic_name: str,
         confidence_score: float,
-        keywords: List[str],
+        keywords: list[str],
     ):
         super().__init__(
             id=topic_id,
@@ -145,9 +145,7 @@ class EntityNode(GraphNode):
 class ConversationNode(GraphNode):
     """Conversation/audio session node model."""
 
-    def __init__(
-        self, conversation_id: str, audio_file_id: str, duration: float, language: str
-    ):
+    def __init__(self, conversation_id: str, audio_file_id: str, duration: float, language: str):
         super().__init__(
             id=conversation_id,
             node_type=NodeType.CONVERSATION,
@@ -203,15 +201,15 @@ class GraphRelationship:
     from_node_id: str
     to_node_id: str
     relationship_type: RelationshipType
-    properties: Dict[str, Any]
+    properties: dict[str, Any]
     created_at: datetime
 
-    def to_cypher_props(self) -> Dict[str, Any]:
+    def to_cypher_props(self) -> dict[str, Any]:
         """Convert to Cypher-compatible properties."""
         import json
-        
+
         props = {}
-        
+
         # Handle nested objects by converting them to JSON strings
         for key, value in self.properties.items():
             if isinstance(value, (dict, list)) and value:  # Only convert non-empty dicts/lists
@@ -220,7 +218,7 @@ class GraphRelationship:
                 props[key] = None  # Store as null instead of empty object
             else:
                 props[key] = value
-        
+
         # Add base properties
         props.update(
             {

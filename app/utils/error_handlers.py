@@ -11,7 +11,7 @@ class AudioProcessingError(Exception):
     """Custom exception for audio processing errors."""
 
 
-async def http_exception_handler(request: Request, exc: HTTPException):
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     """
     Handle FastAPI HTTP exceptions.
     """
@@ -21,7 +21,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     )
 
 
-async def validation_exception_handler(request: Request, exc: ValidationError):
+async def validation_exception_handler(request: Request, exc: ValidationError) -> JSONResponse:
     """
     Handle Pydantic validation errors.
     """
@@ -33,7 +33,7 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
 
 async def audio_processing_exception_handler(
     request: Request, exc: AudioProcessingError
-):
+) -> JSONResponse:
     """
     Handle audio processing errors.
     """
@@ -44,7 +44,7 @@ async def audio_processing_exception_handler(
     )
 
 
-async def generic_exception_handler(request: Request, exc: Exception):
+async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """
     Placeholder for a generic exception handler.
     """

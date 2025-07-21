@@ -65,7 +65,7 @@ export ENVIRONMENT=testing
 if [[ -f "scripts/run-tests.sh" ]]; then
     echo -e "${BLUE}Running environment tests...${NC}"
     ./scripts/run-tests.sh env
-    
+
     echo
     echo -e "${GREEN}=== Test environment setup complete! ===${NC}"
     echo

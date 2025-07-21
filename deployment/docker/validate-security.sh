@@ -122,7 +122,7 @@ if grep -r "password.*=" deployment/docker/docker-compose.yml | grep -v "\${" | 
 fi
 
 if grep -r "secret.*=" deployment/docker/docker-compose.yml | grep -v "\${" | grep -v "example"; then
-    error "Potential hardcoded secrets found"  
+    error "Potential hardcoded secrets found"
     SECRETS_FOUND=1
 fi
 

@@ -31,7 +31,7 @@ GRAPH_RELATIONSHIP_EXTRACTION_METHOD=llm_based
 
 ### Configuration Files:
 
-1. **app/config/settings.py**: 
+1. **app/config/settings.py**:
    - GraphSettings class with `llm_provider` field supporting "openrouter"
    - API key reads from `GRAPH_LLM_API_KEY` or provider-specific env vars
 

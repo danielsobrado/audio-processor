@@ -4,7 +4,6 @@ Orchestrates the transcription process, including job creation and task submissi
 """
 
 import logging
-from typing import Optional
 
 from fastapi import UploadFile
 
@@ -27,7 +26,7 @@ class TranscriptionService:
     async def submit_transcription_job(
         self,
         request: TranscriptionRequest,
-        audio_file: Optional[UploadFile] = None,
+        audio_file: UploadFile | None = None,
     ) -> str:
         """
         Submit a new transcription job.
@@ -61,10 +60,7 @@ class TranscriptionService:
             # Update the job with the Celery task ID
             await self.job_queue.update_job(request.request_id, task_id=task.id)
 
-            logger.info(
-                f"Transcription job {
-                    request.request_id} submitted with task ID {task.id}"
-            )
+            logger.info(f"Transcription job {request.request_id} submitted with task ID {task.id}")
 
             return request.request_id
 

@@ -7,7 +7,13 @@ settings = get_settings()
 
 def is_valid_email(email: str) -> bool:
     """
-    Placeholder for an email validation function.
+    Validates an email address against a basic regex pattern.
+
+    Args:
+        email: The email string to validate.
+
+    Returns:
+        True if the email format is valid, False otherwise.
     """
     # Basic regex for email validation
     pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
@@ -20,11 +26,11 @@ def validate_transcription_params(
     utt_split: float,
 ) -> None:
     """
-    Validate transcription parameters.
+    Validate core transcription parameters before job submission.
 
     Args:
-        language: Language code.
-        model: Transcription model size.
+        language: Language code (e.g., 'en', 'auto').
+        model: Transcription model size (e.g., 'base', 'large-v2').
         utt_split: Utterance split threshold.
 
     Raises:
@@ -32,20 +38,16 @@ def validate_transcription_params(
     """
 
     # Validate language
-    # In a real application, you would have a list of supported languages
     if not re.match(r"^[a-z]{2,3}(-[A-Z]{2})?$", language) and language != "auto":
         raise ValueError(f"Invalid language code: {language}")
 
     # Validate model
     supported_models = ["tiny", "base", "small", "medium", "large-v2", "large-v3"]
     if model not in supported_models:
-        raise ValueError(
-            f"Unsupported model: {model}. Supported models: {supported_models}"
-        )
+        raise ValueError(f"Unsupported model: {model}. Supported models: {supported_models}")
 
     # Validate utterance split
     if not 0.1 <= utt_split <= 1.0:
         raise ValueError(
-            f"Invalid utterance split threshold: {
-                utt_split}. Must be between 0.1 and 1.0."
+            f"Invalid utterance split threshold: {utt_split}. Must be between 0.1 and 1.0."
         )

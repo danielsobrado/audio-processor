@@ -3,7 +3,7 @@ Graph service for abstracting graph database operations.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.config.settings import get_settings
 from app.db.graph_session import get_graph_db_manager
@@ -19,9 +19,16 @@ class GraphService:
     def __init__(self):
         self.settings = get_settings()
 
-    async def get_database_stats(self) -> Dict[str, Any]:
+    async def get_database_stats(self) -> dict[str, Any]:
         """
         Get statistics about the graph database.
+
+        Returns:
+            A dictionary containing node count, relationship count,
+            database type, and status information.
+
+        Raises:
+            Exception: If database connection or query execution fails.
         """
         if not self.settings.graph.enabled:
             return {"message": "Graph processing is disabled"}
@@ -48,11 +55,19 @@ class GraphService:
             logger.error(f"Failed to get graph stats: {e}", exc_info=True)
             return {"error": str(e), "enabled": True}
 
-    async def get_conversation_graph(
-        self, conversation_id: str
-    ) -> Optional[Dict[str, Any]]:
+    async def get_conversation_graph(self, conversation_id: str) -> dict[str, Any] | None:
         """
-        Get the graph for a specific conversation.
+        Get the graph structure for a specific conversation.
+
+        Args:
+            conversation_id: The unique identifier for the conversation.
+
+        Returns:
+            A dictionary containing conversation data, speakers, topics,
+            and relationships, or None if graph processing is disabled.
+
+        Raises:
+            Exception: If database connection or query execution fails.
         """
         if not self.settings.graph.enabled:
             return None
@@ -135,7 +150,7 @@ class GraphService:
             logger.error(f"Failed to get conversation graph: {e}", exc_info=True)
             return None
 
-    async def get_speaker_network(self, conversation_id: str) -> List[Dict[str, Any]]:
+    async def get_speaker_network(self, conversation_id: str) -> list[dict[str, Any]]:
         """
         Get the speaker network for a specific conversation.
         """
@@ -170,9 +185,7 @@ class GraphService:
             network = []
             for result in results:
                 # Filter out null interactions
-                interactions = [
-                    i for i in result.get("interactions", []) if i.get("target_id")
-                ]
+                interactions = [i for i in result.get("interactions", []) if i.get("target_id")]
 
                 network.append(
                     {
@@ -190,7 +203,7 @@ class GraphService:
             logger.error(f"Failed to get speaker network: {e}", exc_info=True)
             return []
 
-    async def get_topic_flow(self, conversation_id: str) -> List[Dict[str, Any]]:
+    async def get_topic_flow(self, conversation_id: str) -> list[dict[str, Any]]:
         """
         Get the topic flow for a specific conversation.
         """
@@ -225,9 +238,7 @@ class GraphService:
             topic_flow = []
             for result in results:
                 # Filter out null transitions
-                transitions = [
-                    t for t in result.get("transitions", []) if t.get("target_id")
-                ]
+                transitions = [t for t in result.get("transitions", []) if t.get("target_id")]
 
                 topic_flow.append(
                     {
@@ -251,9 +262,9 @@ class GraphService:
     async def get_node_relationships(
         self,
         node_id: str,
-        relationship_types: Optional[List[str]] = None,
+        relationship_types: list[str] | None = None,
         direction: str = "BOTH",
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get relationships for a specific node.
         """
@@ -276,13 +287,11 @@ class GraphService:
 
             query = f"""
             MATCH (n {{id: $node_id}}){direction_clause}(related)
-            WHERE type(r) {f'IN {relationship_types}' if relationship_types else 'IS NOT NULL'}
+            WHERE type(r) {f"IN {relationship_types}" if relationship_types else "IS NOT NULL"}
             RETURN n, r, related, type(r) as rel_type
             """
 
-            results = await manager.execute_read_transaction(
-                query, {"node_id": node_id}
-            )
+            results = await manager.execute_read_transaction(query, {"node_id": node_id})
 
             relationships = []
             for result in results:
@@ -291,9 +300,7 @@ class GraphService:
                         "source_node": {
                             "id": result["n"].get("id"),
                             "type": (
-                                list(result["n"].labels)[0]
-                                if result["n"].labels
-                                else "Unknown"
+                                list(result["n"].labels)[0] if result["n"].labels else "Unknown"
                             ),
                             "properties": dict(result["n"]),
                         },
@@ -324,7 +331,7 @@ class GraphService:
         from_node_id: str,
         to_node_id: str,
         max_hops: int = 5,
-    ) -> Optional[List[Dict[str, Any]]]:
+    ) -> list[dict[str, Any]] | None:
         """
         Find the shortest path between two nodes.
         """
@@ -390,7 +397,7 @@ class GraphService:
             logger.error(f"Failed to find shortest path: {e}", exc_info=True)
             return None
 
-    async def create_nodes_batch(self, nodes: List[Any]) -> int:
+    async def create_nodes_batch(self, nodes: list[Any]) -> int:
         """
         Create multiple nodes in a batch.
         """
@@ -401,36 +408,37 @@ class GraphService:
         try:
             logger.info(f"🔧 Creating {len(nodes)} nodes in batch...")
             manager = await get_graph_db_manager()
-            
+
             if not manager.is_connected:
                 logger.info("📡 Initializing graph database connection...")
                 await manager.initialize()
-            
+
             queries = []
             for i, node in enumerate(nodes):
                 props = node.to_cypher_props()
                 query = f"MERGE (n:{node.node_type.value} {{id: $id}}) ON CREATE SET n = $props ON MATCH SET n += $props"
                 queries.append((query, {"id": node.id, "props": props}))
-                
+
                 if i < 3:  # Log first 3 queries for debugging
-                    logger.info(f"📋 Query {i+1}: {query}")
-                    logger.info(f"📋 Props {i+1}: {props}")
-            
+                    logger.info(f"📋 Query {i + 1}: {query}")
+                    logger.info(f"📋 Props {i + 1}: {props}")
+
             logger.info(f"📤 Executing {len(queries)} node creation queries...")
             results = await manager.execute_batch_transactions(queries)
-            
+
             # Return the number of nodes we attempted to create since MERGE doesn't return results
             nodes_created = len(nodes)
             logger.info(f"✅ Node batch creation completed: {nodes_created} nodes processed")
             return nodes_created
-            
+
         except Exception as e:
             logger.error(f"❌ Failed to create nodes in batch: {e}")
             import traceback
+
             logger.error(traceback.format_exc())
             raise
 
-    async def create_relationships_batch(self, relationships: List[Any]) -> int:
+    async def create_relationships_batch(self, relationships: list[Any]) -> int:
         """
         Create multiple relationships in a batch.
         """
@@ -441,11 +449,11 @@ class GraphService:
         try:
             logger.info(f"🔧 Creating {len(relationships)} relationships in batch...")
             manager = await get_graph_db_manager()
-            
+
             if not manager.is_connected:
                 logger.info("📡 Initializing graph database connection...")
                 await manager.initialize()
-            
+
             queries = []
             for i, rel in enumerate(relationships):
                 query = (
@@ -458,22 +466,25 @@ class GraphService:
                     "props": rel.to_cypher_props(),
                 }
                 queries.append((query, query_params))
-                
+
                 if i < 3:  # Log first 3 queries for debugging
-                    logger.info(f"🔗 Query {i+1}: {query}")
-                    logger.info(f"🔗 Params {i+1}: {query_params}")
-            
+                    logger.info(f"🔗 Query {i + 1}: {query}")
+                    logger.info(f"🔗 Params {i + 1}: {query_params}")
+
             logger.info(f"📤 Executing {len(queries)} relationship creation queries...")
             results = await manager.execute_batch_transactions(queries)
-            
+
             # Return the number of relationships we attempted to create since MERGE doesn't return results
             relationships_created = len(relationships)
-            logger.info(f"✅ Relationship batch creation completed: {relationships_created} relationships processed")
+            logger.info(
+                f"✅ Relationship batch creation completed: {relationships_created} relationships processed"
+            )
             return relationships_created
-            
+
         except Exception as e:
             logger.error(f"❌ Failed to create relationships in batch: {e}")
             import traceback
+
             logger.error(traceback.format_exc())
             raise
 

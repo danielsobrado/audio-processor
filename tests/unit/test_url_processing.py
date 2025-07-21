@@ -267,7 +267,7 @@ class TestURLDownloadLogic:
         tasks_file = os.path.join(current_dir, "..", "..", "app", "workers", "tasks.py")
         tasks_file = os.path.normpath(tasks_file)
 
-        with open(tasks_file, "r", encoding="utf-8") as f:
+        with open(tasks_file, encoding="utf-8") as f:
             source = f.read()
 
         # Verify key components are present

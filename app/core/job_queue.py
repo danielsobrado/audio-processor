@@ -4,7 +4,6 @@ Handles job creation, status updates, and retrieval from the database.
 """
 
 import logging
-from typing import Dict, List, Optional
 
 from sqlalchemy.future import select
 
@@ -17,13 +16,18 @@ logger = logging.getLogger(__name__)
 class JobQueue:
     """
     Manages transcription job lifecycle and database operations.
+    This class acts as a repository for TranscriptionJob objects.
     """
 
-    def __init__(self, db: Optional[DatabaseService] = None):
+    def __init__(self, db: DatabaseService | None = None):
         self._db = db
 
-    async def initialize(self):
-        """Initialize database connection if not provided."""
+    async def initialize(self) -> None:
+        """
+        Initialize database connection if not provided.
+        Must be called before any other method if the service was instantiated
+        without a database service.
+        """
         if not self._db:
             self._db = get_database()
         logger.info("JobQueue initialized with database connection")
@@ -39,7 +43,7 @@ class JobQueue:
         request_id: str,
         user_id: str,
         job_type: str,
-        parameters: Dict,
+        parameters: dict,
         status: JobStatus = JobStatus.PENDING,
     ) -> TranscriptionJob:
         """
@@ -75,7 +79,7 @@ class JobQueue:
             logger.error(f"Failed to create job {request_id}: {e}", exc_info=True)
             raise
 
-    async def get_job(self, request_id: str) -> Optional[TranscriptionJob]:
+    async def get_job(self, request_id: str) -> TranscriptionJob | None:
         """
         Retrieve a job by its request ID.
 
@@ -88,9 +92,7 @@ class JobQueue:
         try:
             async with self._ensure_database().get_async_session() as session:
                 result = await session.execute(
-                    select(TranscriptionJob).where(
-                        TranscriptionJob.request_id == request_id
-                    )
+                    select(TranscriptionJob).where(TranscriptionJob.request_id == request_id)
                 )
                 job = result.scalar_one_or_none()
 
@@ -117,12 +119,12 @@ class JobQueue:
     async def update_job(
         self,
         request_id: str,
-        status: Optional[JobStatus] = None,
-        task_id: Optional[str] = None,
-        progress: Optional[float] = None,
-        result: Optional[Dict] = None,
-        error: Optional[str] = None,
-    ) -> Optional[TranscriptionJob]:
+        status: JobStatus | None = None,
+        task_id: str | None = None,
+        progress: float | None = None,
+        result: dict | None = None,
+        error: str | None = None,
+    ) -> TranscriptionJob | None:
         """
         Update an existing job in the database.
 
@@ -141,12 +143,10 @@ class JobQueue:
             async with self._ensure_database().get_async_session() as session:
                 # Query and update within the same session to avoid detached object issues
                 result_query = await session.execute(
-                    select(TranscriptionJob).where(
-                        TranscriptionJob.request_id == request_id
-                    )
+                    select(TranscriptionJob).where(TranscriptionJob.request_id == request_id)
                 )
                 job = result_query.scalar_one_or_none()
-                
+
                 if not job:
                     logger.warning(f"Job {request_id} not found for update")
                     return None
@@ -167,9 +167,7 @@ class JobQueue:
                 await session.commit()
                 await session.refresh(job)
 
-                logger.info(
-                    f"Job {request_id} updated: status={status}, progress={progress}"
-                )
+                logger.info(f"Job {request_id} updated: status={status}, progress={progress}")
                 return job
 
         except Exception as e:
@@ -181,8 +179,8 @@ class JobQueue:
         user_id: str,
         limit: int = 50,
         offset: int = 0,
-        status_filter: Optional[JobStatus] = None,
-    ) -> List[TranscriptionJob]:
+        status_filter: JobStatus | None = None,
+    ) -> list[TranscriptionJob]:
         """
         List all jobs for a specific user.
 
@@ -197,17 +195,13 @@ class JobQueue:
         """
         try:
             async with self._ensure_database().get_async_session() as session:
-                query = select(TranscriptionJob).where(
-                    TranscriptionJob.user_id == user_id
-                )
+                query = select(TranscriptionJob).where(TranscriptionJob.user_id == user_id)
 
                 if status_filter:
                     query = query.where(TranscriptionJob.status == status_filter)
 
                 query = (
-                    query.order_by(TranscriptionJob.created_at.desc())
-                    .limit(limit)
-                    .offset(offset)
+                    query.order_by(TranscriptionJob.created_at.desc()).limit(limit).offset(offset)
                 )
 
                 result = await session.execute(query)

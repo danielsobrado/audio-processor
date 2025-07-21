@@ -6,7 +6,6 @@ Handles transcription, diarization, alignment, and translation.
 import logging
 import tempfile
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import torch
 import whisperx
@@ -14,6 +13,12 @@ from pyannote.audio import Pipeline
 
 from app.config.settings import get_settings
 from app.utils.audio_utils import convert_audio_format, get_audio_duration
+from app.utils.constants import (
+    AUDIO_SAMPLE_RATE,
+    LANGUAGE_DETECTION_DURATION_S,
+    LONG_AUDIO_WARNING_S,
+    MIN_PROCESSING_TIME_S,
+)
 from app.utils.error_handlers import AudioProcessingError
 
 logger = logging.getLogger(__name__)
@@ -56,14 +61,14 @@ class AudioProcessor:
     async def initialize_models(self) -> None:
         """
         Initialize all required models.
-        
+
         Note: Current implementation loads all models on worker startup, which is a
         valid and common pattern for production deployments. This ensures:
         - Consistent model loading time
         - Predictable memory usage
         - Faster individual request processing
         - Better resource management in containerized environments
-        
+
         Future enhancement: Consider implementing model caching and lazy loading
         for environments with memory constraints or dynamic model selection.
         """
@@ -111,9 +116,7 @@ class AudioProcessor:
 
             # Move to specified device
             if self.device == "cuda" and torch.cuda.is_available():
-                self.diarization_pipeline = self.diarization_pipeline.to(
-                    torch.device("cuda")
-                )
+                self.diarization_pipeline = self.diarization_pipeline.to(torch.device("cuda"))
 
         except Exception as e:
             raise AudioProcessingError(f"Failed to load diarization model: {e}")
@@ -142,9 +145,9 @@ class AudioProcessor:
         language: str = "auto",
         diarize: bool = True,
         align: bool = True,
-        min_speakers: Optional[int] = None,
-        max_speakers: Optional[int] = None,
-    ) -> Dict:
+        min_speakers: int | None = None,
+        max_speakers: int | None = None,
+    ) -> dict:
         """
         Process audio file through complete WhisperX pipeline.
 
@@ -183,9 +186,7 @@ class AudioProcessor:
             )
 
             detected_language = result.get("language", language)
-            logger.info(
-                f"Transcription complete. Detected language: {detected_language}"
-            )
+            logger.info(f"Transcription complete. Detected language: {detected_language}")
 
             # Step 2: Word-level alignment
             if align and detected_language in self.alignment_languages:
@@ -292,7 +293,7 @@ class AudioProcessor:
         except Exception as e:
             raise AudioProcessingError(f"Audio conversion failed: {e}")
 
-    def _count_words(self, segments: List[Dict]) -> int:
+    def _count_words(self, segments: list[dict]) -> int:
         """Count total words in segments."""
         total_words = 0
         for segment in segments:
@@ -302,7 +303,7 @@ class AudioProcessor:
                 total_words += len(segment["text"].split())
         return total_words
 
-    def _count_speakers(self, segments: List[Dict]) -> int:
+    def _count_speakers(self, segments: list[dict]) -> int:
         """Count unique speakers in segments."""
         speakers = set()
         for segment in segments:
@@ -314,7 +315,7 @@ class AudioProcessor:
         self,
         audio_path: Path,
         language: str = "auto",
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Simplified transcription with timestamps only.
         Faster processing without alignment or diarization.
@@ -344,7 +345,7 @@ class AudioProcessor:
             logger.error(f"Fast transcription failed: {e}")
             raise AudioProcessingError(f"Transcription failed: {e}")
 
-    async def detect_language(self, audio_path: Path) -> Tuple[str, float]:
+    async def detect_language(self, audio_path: Path) -> tuple[str, float]:
         """
         Detect language of audio file.
 
@@ -358,10 +359,11 @@ class AudioProcessor:
             # Convert audio if needed
             converted_path = await self._prepare_audio(audio_path)
 
-            # Load audio (first 30 seconds for detection)
+            # Load audio (first N seconds for detection)
             audio = whisperx.load_audio(str(converted_path))
-            if len(audio) > 30 * 16000:  # 30 seconds at 16kHz
-                audio = audio[: 30 * 16000]
+            max_detection_samples = LANGUAGE_DETECTION_DURATION_S * AUDIO_SAMPLE_RATE
+            if len(audio) > max_detection_samples:
+                audio = audio[:max_detection_samples]
 
             # Detect language
             result = self.whisper_model.transcribe(
@@ -387,7 +389,7 @@ class AudioProcessor:
             logger.error(f"Language detection failed: {e}")
             raise AudioProcessingError(f"Language detection failed: {e}")
 
-    async def get_audio_info(self, audio_path: Path) -> Dict:
+    async def get_audio_info(self, audio_path: Path) -> dict:
         """
         Get basic information about audio file.
         """
@@ -424,7 +426,7 @@ class AudioProcessor:
         except Exception as e:
             raise AudioProcessingError(f"Failed to get audio info: {e}")
 
-    async def validate_audio_quality(self, audio_path: Path) -> Dict:
+    async def validate_audio_quality(self, audio_path: Path) -> dict:
         """
         Validate audio quality for optimal transcription.
 
@@ -444,16 +446,14 @@ class AudioProcessor:
             # Duration checks
             if info["duration"] < 1.0:
                 quality_report["warnings"].append("Audio is very short (< 1s)")
-            elif info["duration"] > 3600:  # 1 hour
+            elif info["duration"] > LONG_AUDIO_WARNING_S:
                 quality_report["warnings"].append(
-                    "Audio is very long (> 1h), consider splitting"
+                    f"Audio is very long (> {LONG_AUDIO_WARNING_S / 3600:.0f}h), consider splitting"
                 )
 
             # File size checks
             if info["file_size"] > settings.max_file_size * 0.8:
-                quality_report["warnings"].append(
-                    "Large file size may cause processing delays"
-                )
+                quality_report["warnings"].append("Large file size may cause processing delays")
 
             # Sample rate checks (if available)
             if "sample_rate" in info:
@@ -464,8 +464,7 @@ class AudioProcessor:
                     )
                 elif sr > 48000:
                     quality_report["recommendations"].append(
-                        f"High sample rate ({
-                                            sr}Hz), can downsample to save processing time"
+                        f"High sample rate ({sr}Hz), can downsample to save processing time"
                     )
 
             return quality_report
@@ -501,7 +500,7 @@ class AudioProcessor:
 # Utility functions for audio processing
 
 
-async def estimate_processing_time(audio_duration: float, options: Dict) -> float:
+async def estimate_processing_time(audio_duration: float, options: dict) -> float:
     """
     Estimate processing time based on audio duration and options.
 
@@ -529,12 +528,12 @@ async def estimate_processing_time(audio_duration: float, options: Dict) -> floa
             total_factor += factor
 
     # Add base overhead
-    estimated_time = max(5.0, audio_duration * total_factor + 2.0)
+    estimated_time = max(MIN_PROCESSING_TIME_S, audio_duration * total_factor + 2.0)
 
     return estimated_time
 
 
-def get_supported_languages() -> List[Dict[str, str]]:
+def get_supported_languages() -> list[dict[str, str]]:
     """Get list of supported languages for transcription."""
     # WhisperX supported languages
     languages = [

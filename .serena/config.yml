@@ -24,7 +24,7 @@ enable_memories: true
 ignore_patterns:
   - "*.pyc"
   - "__pycache__"
-  - "node_modules" 
+  - "node_modules"
   - ".git"
   - "*.log"
   - "venv"
