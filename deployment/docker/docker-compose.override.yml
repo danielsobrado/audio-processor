@@ -1,0 +1,12 @@
+services:
+  app:
+    # Mount the application code for live reloading
+    volumes:
+      - ../../app:/app/app
+    # Override the command to enable --reload
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  celery-worker:
+    # Mount the application code for the worker as well
+    volumes:
+      - ../../app:/app/app

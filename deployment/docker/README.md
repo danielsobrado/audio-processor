@@ -1,6 +1,102 @@
 # Docker Deployment Guide
 
-This directory contains secure, production-ready Docker configurations for the Audio Processor application.
+This directory contains secure, production-ready Docker configurations for the Audio Processor application using a base + override pattern.
+
+## Docker Compose Setup - Base + Override Pattern
+
+This project uses Docker Compose with a base + override pattern for consistent development and production deployments.
+
+### Files Structure
+
+- `docker-compose.yml` - **Base file** containing the complete application architecture
+- `docker-compose.override.yml` - **Development overrides** applied automatically in development
+
+### Services Included
+
+#### Base Services (docker-compose.yml)
+- **app** - Main FastAPI application
+- **celery-worker** - Background task processor
+- **db** - PostgreSQL database
+- **redis** - Redis cache and message broker
+- **neo4j** - Graph database for relationship tracking
+
+#### Development Overrides (docker-compose.override.yml)
+- **Volume mounts** for live code reloading
+- **--reload flag** for FastAPI hot reloading
+- **Development-specific configurations**
+
+### Usage
+
+#### Development (from project root)
+```bash
+# Start all services with development overrides
+docker-compose up
+
+# Start in background
+docker-compose up -d
+
+# Stop services
+docker-compose down
+
+# Rebuild and start
+docker-compose up --build
+
+# View logs
+docker-compose logs -f
+
+# Check service status
+docker-compose ps
+```
+
+#### Production Deployment
+```bash
+# Use only the base file, ignoring overrides
+docker-compose -f docker-compose.yml up -d
+
+# Or move/rename the override file to disable it
+mv docker-compose.override.yml docker-compose.override.yml.disabled
+docker-compose up -d
+```
+
+### Environment Variables
+
+Ensure your `.env` file in the project root contains:
+
+```env
+# PostgreSQL
+POSTGRES_DB=audio_processor
+POSTGRES_USER=user
+POSTGRES_PASSWORD=password
+
+# Redis
+REDIS_HOST=redis
+
+# Neo4j
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=password
+```
+
+### Service Access Points
+
+- **Application**: http://localhost:8000
+- **PostgreSQL**: localhost:5432
+- **Redis**: localhost:6379
+- **Neo4j Web UI**: http://localhost:7474
+- **Neo4j Bolt**: bolt://localhost:7687
+
+### Benefits of This Approach
+
+1. **Single Source of Truth**: Complete architecture defined in `docker-compose.yml`
+2. **Automatic Overrides**: Development changes applied automatically
+3. **Consistent Workflow**: Same commands work for all developers
+4. **Production Ready**: Base file is production-ready
+5. **Minimal Duplication**: Override file only contains differences
+
+### Migration Notes
+
+- The old `docker-compose.dev.yml` has been backed up as `docker-compose.dev.yml.backup`
+- No more need to specify `-f` flags for development
+- All services now included in the base configuration
 
 ## Security Features
 
