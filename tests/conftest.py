@@ -8,6 +8,9 @@ from unittest.mock import patch
 
 import pytest
 
+# Configure pytest plugins
+pytest_plugins = ("pytest_asyncio",)
+
 # Add the project root to sys.path to ensure app package is discoverable
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 

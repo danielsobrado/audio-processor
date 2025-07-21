@@ -50,7 +50,3 @@ def setup_test_environment():
     load_dotenv(".env.test")
 
     return
-
-
-# Configure pytest-asyncio
-pytest_plugins = ("pytest_asyncio",)
