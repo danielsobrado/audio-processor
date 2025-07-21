@@ -13,14 +13,23 @@ COPY pyproject.toml uv.lock ./
 # Development stage (includes dev dependencies)
 FROM base as builder
 
-# Install all dependencies including dev
-RUN uv sync --frozen --no-install-project
+# Copy application code for building
+COPY . .
+
+# Clean any existing .venv that might have been copied
+RUN rm -rf .venv
+
+# Install all dependencies including dev and the project itself
+RUN uv sync --frozen
 
 # Production dependencies only
 FROM base as prod-deps
 
-# Install only production dependencies
-RUN uv sync --frozen --no-install-project --no-dev
+# Copy application code for production dependencies
+COPY . .
+
+# Install only production dependencies and the project
+RUN uv sync --frozen --no-dev
 
 # Production stage
 FROM python:3.12-slim as production
@@ -94,6 +103,9 @@ WORKDIR /app
 
 # Copy virtual environment with dev dependencies
 COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
+
+# Copy application code
+COPY --chown=appuser:appuser . .
 
 # Ensure virtual environment is in PATH
 ENV PATH="/app/.venv/bin:$PATH"

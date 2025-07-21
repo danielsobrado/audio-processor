@@ -1,0 +1,66 @@
+# Infrastructure-only Docker Compose
+# Use this when running the app locally but need database services
+# Usage: docker-compose -f docker-compose.infra.yml up -d
+
+services:
+  db:
+    image: postgres:15
+    container_name: audio_postgres_db
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-audio_processor}
+      - POSTGRES_USER=${POSTGRES_USER:-user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+    volumes:
+      - audio_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - audio_processor_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: audio_redis_cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - audio_redis_data:/data
+    networks:
+      - audio_processor_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  neo4j:
+    image: neo4j:5-community
+    container_name: audio_neo4j_graph
+    environment:
+      - NEO4J_AUTH=${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-password}
+      - NEO4J_PLUGINS=["apoc"]
+    ports:
+      - "7474:7474" # Web UI
+      - "7687:7687" # Bolt protocol
+    volumes:
+      - audio_neo4j_data:/data
+    networks:
+      - audio_processor_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -O /dev/null --spider --timeout 2 http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  audio_processor_net:
+    driver: bridge
+
+volumes:
+  audio_postgres_data:
+  audio_redis_data:
+  audio_neo4j_data:

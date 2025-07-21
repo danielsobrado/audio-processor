@@ -1,5 +1,7 @@
 services:
   app:
+    build:
+      target: development
     # Mount the application code for live reloading
     volumes:
       - ../../app:/app/app
@@ -7,6 +9,8 @@ services:
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
   celery-worker:
+    build:
+      target: development
     # Mount the application code for the worker as well
     volumes:
       - ../../app:/app/app
