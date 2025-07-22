@@ -18,7 +18,7 @@ supported_formats:
 temp_dir: /tmp/audio_processor
 
 database:
-  url: postgresql://user:password@localhost:5432/db_name
+  url: postgresql://user:password@localhost:5432/audio_processor
   pool_size: 20
 
 redis:
@@ -38,6 +38,7 @@ whisperx:
   batch_size: 8
 
 diarization:
+  enabled: false
   model_name: pyannote/speaker-diarization
   device: cpu
 
