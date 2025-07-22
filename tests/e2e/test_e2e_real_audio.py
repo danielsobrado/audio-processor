@@ -1152,10 +1152,10 @@ if __name__ == "__main__":
 
 
 async def main():
-    """Run the comprehensive end-to-end test."""
-    test = RealAudioE2ETest()
-    success = await test.run_comprehensive_test()
-    return success
+    """Legacy main function for backwards compatibility."""
+    print("⚠️  Please use 'pytest tests/e2e/test_e2e_real_audio.py' instead")
+    print("This legacy main function is deprecated.")
+    return False
 
 
 if __name__ == "__main__":
