@@ -1,5 +1,5 @@
 # Multi-stage build for optimal security and size
-FROM python:3.12-slim as base
+FROM python:3.12-slim AS base
 
 # Install uv for fast dependency management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -11,7 +11,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 
 # Development stage (includes dev dependencies)
-FROM base as builder
+FROM base AS builder
 
 # Copy application code for building
 COPY . .
@@ -23,7 +23,7 @@ RUN rm -rf .venv
 RUN uv sync --frozen
 
 # Production dependencies only
-FROM base as prod-deps
+FROM base AS prod-deps
 
 # Copy application code for production dependencies
 COPY . .
@@ -32,7 +32,7 @@ COPY . .
 RUN uv sync --frozen --no-dev
 
 # Production stage
-FROM python:3.12-slim as production
+FROM python:3.12-slim AS production
 
 # Install system dependencies and security updates
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -81,7 +81,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
 
 # Development stage (for development docker-compose)
-FROM python:3.12-slim as development
+FROM python:3.12-slim AS development
 
 # Install system dependencies (same as production)
 RUN apt-get update && apt-get install -y --no-install-recommends \

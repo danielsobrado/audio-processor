@@ -34,10 +34,10 @@ async def validate_audio_file(file: UploadFile) -> None:
             detail=f"File size exceeds limit of {settings.max_file_size / 1024 / 1024:.2f} MB",
         )
 
-    # Check content type and file extension
-    supported_formats = settings.supported_formats
-    if isinstance(supported_formats, str):
-        supported_formats = [supported_formats]
+    # Check content type and file extension - use constants directly to avoid parsing issues
+    from app.utils.constants import SUPPORTED_AUDIO_FORMATS
+
+    supported_formats = SUPPORTED_AUDIO_FORMATS
 
     # Create mapping of MIME types to extensions
     mime_to_ext = {

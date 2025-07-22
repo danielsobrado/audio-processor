@@ -11,7 +11,7 @@ class TranscriptionRequest(BaseModel):
     """Request model for transcription job submissions."""
 
     request_id: str = Field(..., description="Unique request identifier")
-    user_id: str = Field(..., description="User identifier")
+    user_id: int = Field(..., description="User identifier")
     audio_url: str | None = Field(None, description="URL to audio file")
     language: str | None = Field("auto", description="Language code or 'auto'")
     model: str | None = Field("base", description="Transcription model size")

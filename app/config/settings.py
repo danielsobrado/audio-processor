@@ -263,6 +263,7 @@ class Settings(BaseSettings):
     enable_audio_upload: bool = Field(default=True, alias="ENABLE_AUDIO_UPLOAD")
     enable_url_processing: bool = Field(default=True, alias="ENABLE_URL_PROCESSING")
     enable_summarization: bool = Field(default=True, alias="ENABLE_SUMMARIZATION")
+    enable_async_processing: bool = Field(default=True, alias="ENABLE_ASYNC_PROCESSING")
 
     # Rate limiting
     rate_limit_requests: int = Field(default=100, alias="RATE_LIMIT_REQUESTS")

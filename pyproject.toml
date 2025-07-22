@@ -41,6 +41,7 @@ dependencies = [
     "passlib>=1.7.4",
     "pytest-asyncio>=1.0.0",
     "transformers>=4.53.1",
+    "pydub>=0.25.1",
 ]
 
 [project.optional-dependencies]

@@ -13,10 +13,11 @@ import jwt.algorithms as algorithms
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidTokenError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.settings import Settings, get_settings
 from app.core.job_queue import JobQueue
-from app.db.session import AsyncSessionLocal
+from app.db.session import AsyncSessionLocal, get_async_session
 from app.services.cache import CacheService
 from app.services.transcription import TranscriptionService
 
@@ -32,21 +33,6 @@ def get_settings_dependency() -> Settings:
     Dependency to get Settings instance.
     """
     return get_settings()
-
-
-async def get_async_session():
-    """
-    Dependency to get async database session.
-    """
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
 
 
 def get_cache_service() -> CacheService:
@@ -291,6 +277,41 @@ async def get_current_user_id(
     Get current user ID (compatible with Omi's get_current_user_uid pattern).
     """
     return current_user.user_id
+
+
+async def get_current_db_user_id(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+) -> int:
+    """
+    Get current user's database ID with JIT provisioning.
+
+    This dependency ensures that the JWT user exists in the database,
+    creating them if necessary (Just-In-Time provisioning).
+    Returns the integer database user ID for use in database queries.
+    """
+    try:
+        # Import here to avoid circular imports
+        from app.db import crud
+
+        # Look for the user in our local database by email from the token
+        db_user = await crud.user.get_by_email(db, email=current_user.email)
+
+        if not db_user:
+            # User is authenticated but doesn't have a local profile yet.
+            # Create one now (JIT Provisioning).
+            logger.info(f"User '{current_user.email}' not found locally. Provisioning new user.")
+            db_user = await crud.user.create_from_token(db, token_data=current_user)
+
+        # Access the actual integer value from the SQLAlchemy model
+        user_id: int = db_user.id  # type: ignore[assignment]
+        return user_id
+    except ImportError:
+        logger.error("CRUD module not available - database configuration error")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database configuration error - unable to process user data",
+        )
 
 
 def require_roles(required_roles: list[str]):

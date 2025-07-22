@@ -9,7 +9,7 @@ from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.api.dependencies import get_current_user_id, get_job_queue
+from app.api.dependencies import get_current_db_user_id, get_job_queue
 from app.core.job_queue import JobQueue
 from app.schemas.api import JobStatusResponse
 
@@ -26,7 +26,7 @@ router = APIRouter()
 )
 async def get_job_status(
     request_id: str,
-    user_id: str = Depends(get_current_user_id),
+    user_id: int = Depends(get_current_db_user_id),
     job_queue: JobQueue = Depends(get_job_queue),
 ) -> JobStatusResponse:
     """Get status of transcription job."""
@@ -49,7 +49,7 @@ async def get_job_status(
         )
 
     # Check user access
-    if cast(str, job.user_id) != user_id:
+    if job.user_id != user_id:  # type: ignore
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",

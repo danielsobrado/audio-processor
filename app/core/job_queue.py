@@ -41,7 +41,7 @@ class JobQueue:
     async def create_job(
         self,
         request_id: str,
-        user_id: str,
+        user_id: int,
         job_type: str,
         parameters: dict,
         status: JobStatus = JobStatus.PENDING,
@@ -176,7 +176,7 @@ class JobQueue:
 
     async def list_user_jobs(
         self,
-        user_id: str,
+        user_id: int,
         limit: int = 50,
         offset: int = 0,
         status_filter: JobStatus | None = None,

@@ -6,16 +6,19 @@ Follows Omi's API patterns for audio processing.
 import logging
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from app.api.dependencies import (
+    get_current_db_user_id,
     get_current_user_id,
     get_job_queue,
     get_settings_dependency,
     get_transcription_service,
 )
 from app.config.settings import Settings
+from app.core.audio_processor import AudioProcessor
 from app.core.job_queue import JobQueue
 from app.schemas.api import TranscriptionRequest, TranscriptionResponse
 from app.schemas.database import JobStatus
@@ -27,6 +30,58 @@ from app.workers.tasks import process_audio_async
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+async def _process_audio_sync(
+    request: TranscriptionRequest,
+    audio_file_path: str | None = None,
+    audio_data: bytes | None = None,
+) -> dict:
+    """
+    Process audio synchronously using the AudioProcessor.
+
+    Args:
+        request: TranscriptionRequest with processing parameters
+        audio_file_path: Path to audio file (if uploaded)
+        audio_data: Raw audio bytes (if provided via URL)
+
+    Returns:
+        Dictionary with transcription results
+    """
+    from app.main import app
+
+    # Get the audio processor from the app state
+    if not hasattr(app.state, "audio_processor") or app.state.audio_processor is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Audio processor not available"
+        )
+
+    audio_processor = app.state.audio_processor
+
+    # Determine audio path
+    if audio_file_path:
+        audio_path = Path(audio_file_path)
+    elif request.audio_url:
+        # For URL processing, we'd need to download the audio first
+        # For now, raise an error as this needs additional implementation
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Synchronous URL processing not yet implemented",
+        )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="No audio source provided"
+        )
+
+    # Process audio using the loaded AudioProcessor
+    result = await audio_processor.process_audio(
+        audio_path=audio_path,
+        language=request.language or "auto",
+        diarize=request.include_diarization or False,
+        align=True,  # Always enable alignment for better results
+    )
+
+    return result
 
 
 @router.post(
@@ -60,7 +115,7 @@ async def transcribe_audio(
     # Webhook for completion notification
     callback_url: str | None = Form(None, description="Webhook URL for completion notification"),
     # Dependencies
-    user_id: str = Depends(get_current_user_id),
+    user_id: int = Depends(get_current_db_user_id),
     transcription_service: TranscriptionService = Depends(get_transcription_service),
     job_queue: JobQueue = Depends(get_job_queue),
     settings: Settings = Depends(get_settings_dependency),
@@ -181,23 +236,63 @@ async def transcribe_audio(
         # Add graph processing configuration
         task_data["enable_graph_processing"] = settings.graph.enabled
 
-        task = process_audio_async.delay(
-            request_data=task_data,
-            audio_data=audio_data if not file else None,
-        )
+        # Check if async processing is enabled
+        if settings.enable_async_processing:
+            # Submit for async processing via Celery
+            task = process_audio_async.delay(
+                request_data=task_data,
+                audio_data=audio_data if not file else None,
+            )
 
-        # Update job with task ID
-        await job_queue.update_job(request_id, task_id=task.id)
+            # Update job with task ID
+            await job_queue.update_job(request_id, task_id=task.id)
 
-        logger.info(f"Transcription job {request_id} queued for user {user_id}")
+            logger.info(f"Transcription job {request_id} queued for user {user_id} (async)")
 
-        # Return response with job information
-        return TranscriptionResponse(
-            request_id=request_id,
-            status="queued",
-            created=datetime.now(UTC),
-            message="Audio submitted for processing",
-        )
+            # Return response with job information
+            return TranscriptionResponse(
+                request_id=request_id,
+                status="queued",
+                created=datetime.now(UTC),
+                message="Audio submitted for processing",
+            )
+        else:
+            # Process synchronously
+            logger.info(
+                f"Processing transcription job {request_id} synchronously for user {user_id}"
+            )
+
+            try:
+                # Update job status to processing
+                await job_queue.update_job(request_id, status=JobStatus.PROCESSING)
+
+                # Process audio synchronously
+                result = await _process_audio_sync(
+                    request, audio_file_path if file else None, audio_data
+                )
+
+                # Update job with results
+                await job_queue.update_job(
+                    request_id, status=JobStatus.COMPLETED, result=result, progress=100.0
+                )
+
+                logger.info(f"Transcription job {request_id} completed synchronously")
+
+                # Return response with results
+                return TranscriptionResponse(
+                    request_id=request_id,
+                    status="completed",
+                    created=datetime.now(UTC),
+                    message="Audio processing completed",
+                )
+
+            except Exception as e:
+                logger.error(f"Synchronous processing failed for job {request_id}: {e}")
+                await job_queue.update_job(request_id, status=JobStatus.FAILED, error=str(e))
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Audio processing failed: {str(e)}",
+                )
 
     except Exception as e:
         logger.error(f"Transcription submission failed: {e}", exc_info=True)
@@ -222,7 +317,7 @@ async def transcribe_audio(
 )
 async def cancel_job(
     request_id: str,
-    user_id: str = Depends(get_current_user_id),
+    user_id: int = Depends(get_current_db_user_id),
     job_queue: JobQueue = Depends(get_job_queue),
 ) -> None:
     """Cancel a transcription job."""
@@ -241,7 +336,7 @@ async def cancel_job(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
     # Check user access
-    if str(job.user_id) != user_id:
+    if job.user_id != user_id:  # type: ignore
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     # Check if job can be cancelled
@@ -280,7 +375,7 @@ async def list_user_jobs(
     limit: int | None = None,
     offset: int | None = None,
     status_filter: str | None = None,
-    user_id: str = Depends(get_current_user_id),
+    user_id: int = Depends(get_current_db_user_id),
     job_queue: JobQueue = Depends(get_job_queue),
     settings: Settings = Depends(get_settings_dependency),
 ):
