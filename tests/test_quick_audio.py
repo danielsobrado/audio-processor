@@ -70,7 +70,7 @@ async def test_quick_audio_processing():
 
                 if response.status_code in [200, 201]:
                     result = response.json()
-                    print(f"✅ Upload successful!")
+                    print("✅ Upload successful!")
                     print(f"📄 Job ID: {result.get('job_id', 'N/A')}")
                     print(f"🔄 Status: {result.get('status', 'N/A')}")
                     if 'transcription' in result:

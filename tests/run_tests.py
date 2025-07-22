@@ -4,10 +4,11 @@ Test runner script for running all tests with pytest.
 This script replaces the legacy test execution methods.
 """
 
+import os
 import subprocess
 import sys
-import os
 from pathlib import Path
+
 
 def run_pytest(test_path: str = "", verbose: bool = True, markers: str = ""):
     """

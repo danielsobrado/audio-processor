@@ -15,6 +15,7 @@ sys.path.insert(0, str(project_root))
 
 import pytest
 
+
 def main():
     """Run quick component tests."""
     print("🔍 Running quick E2E component tests...")

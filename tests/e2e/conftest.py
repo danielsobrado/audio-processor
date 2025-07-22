@@ -2,11 +2,13 @@
 Pytest configuration for E2E tests.
 """
 
-import pytest
-import pytest_asyncio
 import asyncio
 import os
 from pathlib import Path
+
+import pytest
+import pytest_asyncio
+
 
 # Configure pytest to handle async tests
 @pytest.fixture(scope="session")
