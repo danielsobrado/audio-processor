@@ -6,6 +6,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     admin,
+    autoschema_kg,
     graph,
     health,
     results,
@@ -21,5 +22,6 @@ api_router.include_router(status.router, tags=["Job Status"])
 api_router.include_router(results.router, tags=["Job Results"])
 api_router.include_router(health.router, tags=["Health"])
 api_router.include_router(graph.router, prefix="/graph", tags=["Graph"])
+api_router.include_router(autoschema_kg.router, prefix="/autoschema-kg", tags=["AutoSchemaKG"])
 api_router.include_router(users.router, prefix="/users", tags=["Users"])
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])

@@ -42,6 +42,14 @@ dependencies = [
     "pytest-asyncio>=1.0.0",
     "transformers>=4.53.1",
     "pydub>=0.25.1",
+    "sentence-transformers>=5.0.0",
+    "faiss-cpu>=1.11.0.post1",
+    "openai>=1.97.0",
+    "jsonschema>=4.25.0",
+    "json-repair>=0.47.8",
+    "datasets>=4.0.0",
+    "networkx>=3.5",
+    "pandas>=2.3.0",
 ]
 
 [project.optional-dependencies]
